@@ -4,6 +4,17 @@ This is the Bitcoin Lightning Network paper.
 
 Paper PDF: [http://lightning.network/lightning-network-paper.pdf](http://lightning.network/lightning-network-paper.pdf)
 
+## Translations
+
+| Language | Source | Status |
+| --- | --- | --- |
+| English (original) | [paper.tex](paper.tex) | Canonical |
+| Português (Brasil) | [paper.pt-BR.tex](paper.pt-BR.tex) | Draft v0.5.9.2 |
+
+To compile a translation, run the same recipe as the English version against
+the translated file (e.g. `pdflatex paper.pt-BR.tex` etc.). Figures in
+`figures/` are language-neutral and shared across translations.
+
 #Compiling/Editing
 
 Paper is in LaTeX format. Diagrams are in dia, but may remake the diagrams in

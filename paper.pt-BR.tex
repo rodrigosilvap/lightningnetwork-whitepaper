@@ -1,0 +1,2168 @@
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazilian]{babel}
+\usepackage{graphicx}
+%\usepackage{fullpage}
+\usepackage{pdfpages}
+\usepackage{color}
+\usepackage[colorlinks=true,urlcolor=blue,citecolor=black]{hyperref}
+\usepackage{url}
+\usepackage[font=footnotesize,labelfont=bf]{caption}
+%nome completo para o apêndice
+\usepackage[title]{appendix}
+\usepackage{float}
+%\usepackage{parskip}
+%para código
+\usepackage{listings}
+%para matemática
+\usepackage{amsmath}
+
+\linespread{1.1}
+\setlength{\parindent}{30pt}
+\setlength{\emergencystretch}{3em}
+
+
+%abertura
+\title{\LARGE A Lightning Network do Bitcoin:\\
+	\Large Pagamentos Instantâneos Off-Chain e Escaláveis}
+\author{
+		Joseph Poon\\
+		\small\href{mailto:joseph@lightning.network}
+			{\nolinkurl{joseph@lightning.network}}
+	\and
+		Thaddeus Dryja\\
+		\small\href{mailto:rx@awsomnet.org}
+			{\nolinkurl{rx@awsomnet.org}}
+	}
+\date{\today\\\small RASCUNHO Versão 0.5.9.2 \\ \small Tradução para o Português (Brasil)}
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+O protocolo Bitcoin pode abranger todo o volume global de transações financeiras
+de todos os sistemas de pagamento eletrônico atuais, sem que um único terceiro
+custodiante mantenha os fundos ou que se exija dos participantes mais do que um
+computador com uma conexão de banda larga. É proposto um sistema descentralizado
+no qual as transações são enviadas por uma rede de canais de micropagamento
+(também conhecidos como canais de pagamento ou canais de transação) cuja
+transferência de valor ocorre fora da blockchain. Se as transações Bitcoin
+puderem ser assinadas com um novo tipo de sighash que resolva a maleabilidade,
+essas transferências podem ocorrer entre partes que não confiam umas nas outras
+ao longo da rota de transferência, por meio de contratos que, em caso de
+participantes não cooperativos ou hostis, são exigíveis via transmissão na
+blockchain do Bitcoin, através de uma série de timelocks decrescentes.
+
+\end{abstract}
+
+\section{O Problema de Escalabilidade da Blockchain Bitcoin}
+
+A blockchain do Bitcoin\cite{nakamoto} é muito promissora como livro-razão
+distribuído, mas a blockchain como plataforma de pagamento, por si só, não pode
+abranger todo o comércio mundial em um futuro próximo. A blockchain é um
+protocolo de fofoca (gossip protocol), no qual todas as modificações de estado
+do livro-razão são transmitidas a todos os participantes. É por meio desse
+``protocolo de fofoca'' que se chega a um consenso sobre o estado, isto é, sobre
+os saldos de todos. Se cada nó da rede Bitcoin precisar saber de cada uma das
+transações que ocorrem globalmente, isso pode prejudicar substancialmente a
+capacidade da rede de abranger todas as transações financeiras globais. Em vez
+disso, seria desejável abranger todas as transações de uma forma que não
+sacrifique a descentralização e a segurança que a rede oferece.
+
+A rede de pagamentos Visa atingiu o pico de 47.000 transações por segundo (tps)
+em sua rede durante o feriado de 2013\cite{visa}, e atualmente processa em média
+centenas de milhões de transações por dia. Atualmente, o Bitcoin suporta menos
+de 7 transações por segundo, com um limite de bloco de 1 megabyte. Se usarmos
+uma média de 300 bytes por transação Bitcoin e supusermos blocos de tamanho
+ilimitado, uma capacidade equivalente ao pico de transações da Visa de 47.000
+tps exigiria blocos de quase 8 gigabytes a cada dez minutos, em média.
+Continuamente, isso resultaria em mais de 400 terabytes de dados por ano.
+
+Claramente, atingir hoje uma capacidade similar à da Visa na rede Bitcoin não é
+viável. Nenhum computador doméstico do mundo consegue operar com esse nível de
+largura de banda e armazenamento. Se o Bitcoin viesse a substituir todos os
+pagamentos eletrônicos no futuro, e não apenas a Visa, o resultado seria o
+colapso total da rede Bitcoin ou, na melhor das hipóteses, uma centralização
+extrema dos nós e mineradores nas poucas entidades que pudessem arcar com isso.
+Essa centralização anularia aspectos da descentralização da rede que tornam o
+Bitcoin seguro, já que é justamente a capacidade de entidades validarem a cadeia
+que permite ao Bitcoin garantir a exatidão e a segurança do livro-razão.
+
+Ter menos validadores devido a blocos maiores implica não apenas em menos
+indivíduos garantindo a exatidão do livro-razão, mas também em menos entidades
+capazes de validar a blockchain como parte do processo de mineração, o que
+estimula a centralização da mineração. Blocos extremamente grandes, como no caso
+acima de 8 gigabytes a cada 10 minutos em média, implicariam que apenas algumas
+poucas entidades seriam capazes de validar blocos. Isso cria uma grande
+possibilidade de que entidades acabem confiando em partes centralizadas. Ter
+partes privilegiadas e confiáveis cria uma armadilha social, na qual a parte
+central não agirá em favor do indivíduo (problema do agente-principal),
+incluindo, por exemplo, rentismo via cobrança de taxas mais altas para mitigar o
+incentivo a agir desonestamente. Em casos extremos, isso se manifesta como
+indivíduos enviando fundos a custodiantes centralizados de confiança que têm a
+custódia total dos fundos dos clientes. Tais arranjos, como ocorrem hoje, criam
+sério risco de contraparte. Um pré-requisito para impedir que esse tipo de
+centralização ocorra exige a capacidade de o Bitcoin ser validado por um único
+computador de consumidor em uma conexão doméstica de banda larga. Ao garantir
+que a validação completa possa ocorrer de forma barata, os nós e mineradores
+Bitcoin serão capazes de evitar centralização extrema e confiança, o que assegura
+taxas de transação extremamente baixas.
+
+Embora seja possível que a Lei de Moore continue indefinidamente, e que a
+capacidade computacional para que os nós computem economicamente blocos de
+múltiplos gigabytes venha a existir no futuro, isso não é uma certeza.
+
+Para atingir muito mais do que 47.000 transações por segundo usando o Bitcoin,
+é necessário conduzir as transações fora da própria blockchain do Bitcoin. Seria
+ainda melhor se a rede Bitcoin suportasse um número quase ilimitado de
+transações por segundo, com taxas extremamente baixas para micropagamentos.
+Muitos micropagamentos podem ser enviados sequencialmente entre duas partes para
+viabilizar pagamentos de qualquer tamanho. Os micropagamentos permitiriam o
+desempacotamento, menor necessidade de confiança e a comoditização de serviços,
+como pagamentos por megabyte para serviço de internet. Para poder atender a
+esses casos de uso de micropagamento, no entanto, seria necessário reduzir
+drasticamente a quantidade de transações que acabam sendo transmitidas para a
+blockchain global do Bitcoin.
+
+Embora seja possível escalar em um nível pequeno, é absolutamente impossível
+lidar com uma grande quantidade de micropagamentos na rede ou abranger todas as
+transações globais. Para que o Bitcoin tenha sucesso, é preciso ter confiança
+de que, se ele se tornar extremamente popular, suas vantagens atuais decorrentes
+da descentralização continuarão existindo. Para que as pessoas hoje acreditem
+que o Bitcoin funcionará amanhã, o Bitcoin precisa resolver a questão dos
+efeitos de centralização do tamanho do bloco; blocos grandes criam,
+implicitamente, custodiantes de confiança e taxas significativamente mais
+altas.
+
+\section{Uma Rede de Canais de Micropagamento Pode Resolver a Escalabilidade}
+
+\begin{quote}
+	``Se uma árvore cai na floresta e não há ninguém por perto para ouvir,
+	ela faz algum som?''
+\end{quote}
+
+A citação acima questiona a relevância de eventos não observados \textemdash se
+ninguém ouve a árvore cair, se ela fez som ou não é irrelevante. De forma
+similar, na blockchain, se apenas dois participantes se importam com uma
+transação cotidiana recorrente, não é necessário que todos os demais nós da rede
+Bitcoin saibam dessa transação. É preferível, em vez disso, ter apenas o mínimo
+de informação na blockchain. Ao adiar o ato de contar ao mundo inteiro sobre
+cada transação, fazendo a liquidação líquida da relação em uma data posterior,
+os usuários do Bitcoin podem realizar muitas transações sem inchar a blockchain
+ou criar confiança em uma contraparte centralizada. Uma estrutura efetivamente
+sem confiança pode ser obtida usando timelocks como componente do consenso
+global.
+
+Atualmente, a solução para micropagamentos e escalabilidade é transferir as
+transações para um custodiante, no qual se confia em terceiros para guardar as
+moedas e atualizar saldos com outras partes. Confiar em terceiros para guardar
+todos os fundos cria risco de contraparte e custos de transação.
+
+Em vez disso, usando uma rede desses canais de micropagamento, o Bitcoin pode
+escalar para bilhões de transações por dia com o poder computacional disponível
+em um computador desktop moderno atual. Enviar muitos pagamentos dentro de um
+mesmo canal de micropagamento permite enviar grandes quantias de fundos para
+outra parte de forma descentralizada. Esses canais não são uma rede
+intermediária confiável construída por cima do Bitcoin. Eles são transações
+Bitcoin reais.
+
+Os canais de micropagamento\cite{wikicontracts}\cite{bitcoinjmicropay} criam uma
+relação entre duas partes para atualizar saldos perpetuamente, adiando o que é
+transmitido à blockchain para uma única transação que liquida o saldo total
+entre essas duas partes. Isso permite que as relações financeiras entre duas
+partes sejam adiadas, sem confiança, para uma data posterior, sem risco de
+inadimplência da contraparte. Os canais de micropagamento usam transações
+Bitcoin reais, optando apenas por adiar a transmissão à blockchain de modo que
+ambas as partes possam garantir seu saldo atual na blockchain; não se trata de
+uma rede sobreposta confiável \textemdash os pagamentos em canais de
+micropagamento são bitcoins reais comunicados e trocados fora da cadeia.
+
+\subsection{Canais de Micropagamento Não Requerem Confiança}
+
+Assim como a antiga questão sobre a árvore que cai na floresta e se faz som, se
+todas as partes concordam que a árvore caiu às 14:45 da tarde, então a árvore
+realmente caiu às 14:45 da tarde. De forma similar, se ambas as contrapartes
+concordam que o saldo atual dentro de um canal é 0,07 BTC para Alice e 0,03 BTC
+para Bob, então esse é o saldo verdadeiro. Entretanto, sem criptografia, surge
+um problema interessante: se uma contraparte discorda do saldo atual dos fundos
+(ou do horário em que a árvore caiu), é a palavra de um contra a palavra do
+outro. Sem assinaturas criptográficas, a blockchain não saberá quem é dono do
+quê.
+
+Se o saldo no canal for 0,05 BTC para Alice e 0,05 BTC para Bob, e o saldo
+após uma transação for 0,07 BTC para Alice e 0,03 BTC para Bob, a rede precisa
+saber qual conjunto de saldos está correto. As transações da blockchain
+resolvem esse problema usando o livro-razão da blockchain como um sistema de
+carimbo de tempo. Ao mesmo tempo, é desejável criar um sistema que não use
+ativamente esse sistema de carimbo de tempo, a menos que absolutamente
+necessário, já que ele pode se tornar custoso para a rede.
+
+Em vez disso, ambas as partes podem se comprometer a assinar uma transação e
+não transmiti-la. Assim, se Alice e Bob colocarem fundos em um endereço
+multiassinatura 2-de-2 (em que é necessário o consentimento de ambas as partes
+para criar gastos), eles podem concordar sobre o estado atual do saldo. Alice
+e Bob podem concordar em criar um reembolso a partir dessa transação 2-de-2
+para si mesmos, 0,05 BTC para cada um. Esse reembolso \textit{não} é
+transmitido na blockchain. Qualquer uma das partes pode transmiti-lo, mas
+podem optar por manter essa transação consigo, sabendo que podem resgatar os
+fundos quando se sentirem confortáveis. Ao adiar a transmissão dessa
+transação, podem optar por alterar esse saldo em uma data futura.
+
+Para atualizar o saldo, ambas as partes criam um novo gasto a partir do
+endereço multiassinatura 2-de-2, por exemplo, 0,07 para Alice e 0,03 para Bob.
+Sem o projeto adequado, porém, surge o problema de carimbo de tempo: não se
+sabe qual gasto é correto: o novo gasto ou o reembolso original.
+
+A restrição quanto ao carimbo de tempo e datas, contudo, não é tão complexa
+quanto a ordenação total de todas as transações como ocorre na blockchain do
+Bitcoin. No caso dos canais de micropagamento, apenas dois estados são
+necessários: o saldo atual correto e quaisquer saldos antigos depreciados.
+Existe apenas um único saldo atual correto, e possivelmente muitos saldos
+antigos depreciados.
+
+Portanto, é possível, no Bitcoin, conceber um script de modo que todas as
+transações antigas sejam invalidadas e apenas a nova transação seja válida.
+A invalidação é imposta por um script de saída Bitcoin e por transações
+dependentes que forçam a outra parte a entregar todos os seus fundos à
+contraparte do canal. Ao confiscar todos os fundos como penalidade para serem
+entregues à outra parte, todas as transações antigas são, assim, invalidadas.
+
+Esse processo de invalidação pode existir através de um processo de consenso
+do canal em que, se ambas as partes concordam com os estados atuais do
+livro-razão (e na construção de novos estados), então o saldo real é
+atualizado. O saldo é refletido na blockchain apenas quando uma única parte
+discorda. Conceitualmente, esse sistema não é uma rede sobreposta independente;
+é mais um adiamento de estado sobre o sistema atual, já que a aplicação ainda
+ocorre na própria blockchain (embora adiada para datas e transações futuras).
+
+\subsection{Uma Rede de Canais}
+
+Assim, os canais de micropagamento criam apenas uma relação entre duas partes.
+Exigir que todos criem canais com todos os outros não resolve o problema de
+escalabilidade. A escalabilidade do Bitcoin pode ser obtida usando uma grande
+rede de canais de micropagamento.
+
+Se presumirmos uma grande rede de canais sobre a blockchain do Bitcoin, e que
+todos os usuários do Bitcoin estão participando desse grafo tendo ao menos um
+canal aberto na blockchain do Bitcoin, é possível criar uma quantidade quase
+infinita de transações dentro dessa rede. As únicas transações transmitidas à
+blockchain do Bitcoin prematuramente são aquelas com contrapartes de canal não
+cooperativas.
+
+%TODO: definir hashlock e timelock
+Ao encumbrar (onerar) as saídas das transações Bitcoin com um hashlock e
+timelock, a contraparte do canal será incapaz de simplesmente roubar fundos e
+os bitcoins podem ser trocados sem risco de roubo direto pela contraparte.
+Além disso, ao usar timeouts escalonados, é possível enviar fundos por meio de
+vários intermediários em uma rede sem o risco de roubo dos fundos por esses
+intermediários.
+
+\section{Canais de Pagamento Bidirecionais}
+
+Os canais de micropagamento permitem o simples adiamento da transmissão de um
+estado de transação para um momento posterior. Os contratos são impostos
+criando uma responsabilidade de uma parte de transmitir transações antes ou
+depois de certas datas. Se a blockchain é um sistema descentralizado de
+carimbo de tempo, é possível usar relógios como componente do consenso
+descentralizado\cite{lamportpaxos} para determinar a validade dos dados, assim
+como apresentar estados como método para ordenar
+eventos\cite{lamportclocks}.
+
+Ao criar janelas de tempo dentro das quais certos estados podem ser
+transmitidos e posteriormente invalidados, é possível criar contratos
+complexos usando scripts de transação Bitcoin. Há trabalhos anteriores sobre
+Canais de Micropagamento em estrela
+(Hub-and-Spoke)\cite{akselrod}\cite{akselrod2}\cite{todd} (e redes de canais de
+pagamento confiáveis\cite{amikopay}\cite{impulse}) buscando construir uma rede
+em estrela atualmente. Entretanto, o canal de micropagamento bidirecional da
+Lightning Network requer o soft-fork de maleabilidade descrito no Apêndice A
+para permitir escalabilidade quase infinita, mitigando os riscos de
+inadimplência dos nós intermediários.
+
+Ao encadear múltiplos canais de micropagamento, é possível criar uma rede de
+caminhos de transações. Os caminhos podem ser roteados usando um sistema
+similar ao BGP, e o remetente pode designar um caminho específico para o
+destinatário. Os scripts de saída são onerados por um hash, gerado pelo
+destinatário. Ao divulgar a entrada (preimage) desse hash, a contraparte do
+destinatário poderá puxar os fundos ao longo da rota.
+
+\subsection{O Problema de Atribuição de Culpa na Criação do Canal}
+
+Para participar dessa rede de pagamentos, é necessário criar um canal de
+micropagamento com outro participante da rede.
+
+\subsubsection{Criando uma Transação de Financiamento Não Assinada}
+
+Uma Transação de Financiamento inicial do canal é criada, na qual uma ou ambas
+as contrapartes do canal financiam as entradas dessa transação. Ambas as
+partes criam as entradas e saídas dessa transação, mas não assinam a
+transação.
+
+A saída dessa Transação de Financiamento é um único script multiassinatura
+2-de-2 com ambos os participantes do canal, daqui em diante chamados de Alice
+e Bob. Ambos os participantes não trocam assinaturas para a Transação de
+Financiamento até que tenham criado gastos a partir dessa saída 2-de-2,
+reembolsando o valor original aos respectivos financiadores. O propósito de
+não assinar a transação permite gastar a partir de uma transação que ainda
+não existe. Se Alice e Bob trocassem as assinaturas da Transação de
+Financiamento sem antes poderem transmitir gastos a partir dela, os fundos
+poderiam ficar travados para sempre caso Alice e Bob não cooperassem (ou
+outras perdas de moedas poderiam ocorrer através de cenários de refém, em que
+se paga pela cooperação da contraparte).
+
+Alice e Bob trocam as entradas para financiar a Transação de Financiamento
+(para saber quais entradas serão usadas para determinar o valor total do
+canal) e trocam uma chave a ser usada para assinar mais tarde. Essa chave é
+usada para a saída 2-de-2 da Transação de Financiamento; ambas as assinaturas
+são necessárias para gastar a partir da Transação de Financiamento, ou seja,
+tanto Alice quanto Bob precisam concordar em gastar a partir dela.
+
+\subsubsection{Gastando a partir de uma Transação Não Assinada}
+
+A Lightning Network usa uma transação SIGHASH\_NOINPUT para gastar a partir
+dessa saída 2-de-2 da Transação de Financiamento, pois é necessário gastar a
+partir de uma transação cujas assinaturas ainda não foram trocadas.
+SIGHASH\_NOINPUT, implementado via soft-fork, garante que as transações possam
+ser gastas antes de serem assinadas por todas as partes, já que, sem novos
+flags de sighash, seria necessário assinar para obter um ID de transação.
+Sem o SIGHASH\_NOINPUT, as transações Bitcoin não podem ser gastas antes de
+poderem ser transmitidas \textemdash é como se não fosse possível elaborar um
+contrato sem antes pagar a outra parte. O SIGHASH\_NOINPUT resolve esse
+problema. Veja o Apêndice A para mais informações e implementação.
+
+Sem o SIGHASH\_NOINPUT, não é possível gerar um gasto a partir de uma
+transação sem trocar assinaturas, já que gastar a Transação de Financiamento
+requer o ID da transação como parte da assinatura na entrada do filho. Um
+componente do ID da Transação é a assinatura do pai (Transação de
+Financiamento), de modo que ambas as partes precisam trocar suas assinaturas
+da transação pai antes que o filho possa ser gasto. Como uma ou ambas as
+partes precisam conhecer as assinaturas do pai para gastar a partir dele,
+isso significa que uma ou ambas as partes seriam capazes de transmitir o pai
+(Transação de Financiamento) antes que o filho sequer exista. O
+SIGHASH\_NOINPUT contorna isso permitindo que o filho seja gasto sem assinar
+a entrada. Com o SIGHASH\_NOINPUT, a ordem das operações é:
+\begin{enumerate}
+	\item Criar o pai (Transação de Financiamento)
+	\item Criar os filhos (Transações de Compromisso e todos os gastos a
+		partir das transações de compromisso)
+	\item Assinar os filhos
+	\item Trocar as assinaturas dos filhos
+	\item Assinar o pai
+	\item Trocar as assinaturas do pai
+	\item Transmitir o pai na blockchain
+\end{enumerate}
+
+Não é possível transmitir o pai (Etapa 7) até que a Etapa 6 esteja completa.
+Ambas as partes não deram sua assinatura para gastar a partir da Transação
+de Financiamento até a etapa 6. Além disso, se uma parte falhar durante a
+Etapa 6, o pai pode ser gasto (tornando-se a transação pai) ou as entradas
+da transação pai podem ser gastas em duplicidade (de modo que todo esse
+caminho de transação seja invalidado).
+
+\subsubsection{Transações de Compromisso: Construção Não Exequível}
+
+Após a criação da Transação de Financiamento não assinada (e não transmitida),
+ambas as partes assinam e trocam uma Transação de Compromisso inicial. Essas
+Transações de Compromisso gastam a partir da saída 2-de-2 da Transação de
+Financiamento (pai). Entretanto, apenas a Transação de Financiamento é
+transmitida na blockchain.
+
+Como a Transação de Financiamento já entrou na blockchain, e a saída é uma
+transação multiassinatura 2-de-2 que requer o acordo de ambas as partes para
+ser gasta, as Transações de Compromisso são usadas para expressar o saldo
+presente. Se apenas uma Transação de Compromisso 2-de-2 assinada for trocada
+entre as partes, ambas terão certeza de que poderão recuperar seu dinheiro
+depois que a Transação de Financiamento entrar na blockchain. As partes não
+transmitem as Transações de Compromisso na blockchain até que desejem fechar o
+saldo atual do canal. Elas fazem isso transmitindo a Transação de Compromisso
+atual.
+
+As Transações de Compromisso pagam os saldos atuais respectivos a cada parte.
+Uma implementação ingênua (defeituosa) construiria uma transação não
+transmitida em que há um gasto 2-de-2 a partir de uma única transação com
+duas saídas que devolvem todos os saldos atuais às duas contrapartes do
+canal. Isso devolverá todos os fundos à parte original ao criar uma Transação
+de Compromisso inicial.
+
+%Diagrama - Transação de financiamento defeituosa
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/funding-broken1.pdf}
+	}
+	\caption{Este diagrama descreve uma transação de financiamento
+		ingênua e defeituosa. A Transação de Financiamento (F),
+		designada em verde, é transmitida na blockchain após todas as
+		demais transações serem assinadas. Todas as outras transações
+		que gastam a partir da transação de financiamento ainda não
+		são transmitidas, caso as contrapartes desejem atualizar seu
+		saldo. Apenas a Transação de Financiamento é transmitida na
+		blockchain neste momento.
+	}
+\end{figure}
+
+Por exemplo, se Alice e Bob concordam em criar uma Transação de Financiamento
+com uma única saída 2-de-2 no valor de 1,0 BTC (com contribuição de 0,5 BTC
+de cada um), eles criam uma Transação de Compromisso com duas saídas de
+0,5 BTC para Alice e Bob. As Transações de Compromisso são assinadas primeiro
+e as chaves são trocadas para que qualquer um possa transmitir a Transação de
+Compromisso a qualquer momento, condicionado à entrada da Transação de
+Financiamento na blockchain. Nesse ponto, as assinaturas da Transação de
+Financiamento podem ser trocadas com segurança, já que qualquer das partes é
+capaz de resgatar seus fundos transmitindo a Transação de Compromisso.
+
+Esta construção, contudo, falha quando se deseja atualizar o saldo atual.
+Para atualizar o saldo, é necessário atualizar os valores de saída da
+Transação de Compromisso (a Transação de Financiamento já entrou na
+blockchain e não pode ser alterada).
+
+Quando ambas as partes concordam com uma nova Transação de Compromisso e
+trocam assinaturas para a nova Transação de Compromisso, qualquer uma das
+Transações de Compromisso pode ser transmitida. Como a saída da Transação
+de Financiamento só pode ser resgatada uma vez, apenas uma dessas transações
+será válida. Por exemplo, se Alice e Bob concordam que o saldo do canal é
+agora 0,4 para Alice e 0,6 para Bob, e uma nova Transação de Compromisso é
+criada para refletir isso, qualquer uma das Transações de Compromisso pode
+ser transmitida. Na prática, não há como restringir qual Transação de
+Compromisso é transmitida, já que ambas as partes assinaram e trocaram as
+assinaturas para que qualquer saldo possa ser transmitido.
+
+%Diagrama - Transação de financiamento defeituosa
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/funding-broken2.pdf}
+	}
+	\caption{Qualquer uma das Transações de Compromisso pode ser
+		transmitida a qualquer momento por qualquer parte; apenas uma
+		conseguirá efetivamente gastar a única Transação de
+		Financiamento. Isso não pode funcionar porque uma das partes
+		não vai querer transmitir a transação mais recente.
+	}
+\end{figure}
+
+Como qualquer parte pode transmitir a Transação de Compromisso a qualquer
+momento, o resultado seria que, após gerada a nova Transação de Compromisso,
+aquela que recebe menos fundos tem incentivo significativo para transmitir a
+transação que tem valores maiores para si nas saídas da Transação de
+Compromisso. Como resultado, o canal seria imediatamente fechado e os fundos
+roubados. Portanto, não é possível criar canais de pagamento sob esse modelo.
+
+\subsubsection{Transações de Compromisso: Atribuindo Culpa}
+
+Como qualquer Transação de Compromisso assinada pode ser transmitida na
+blockchain, e apenas uma pode ser transmitida com sucesso, é necessário
+impedir que Transações de Compromisso antigas sejam transmitidas. Não é
+possível revogar dezenas de milhares de transações no Bitcoin, então é
+necessário um método alternativo. Em vez de revogação ativa imposta pela
+blockchain, é preciso construir o próprio canal de forma similar a uma
+Caução de Fidelidade (Fidelity Bond), em que ambas as partes fazem
+compromissos, e violações desses compromissos são impostas via penalidades.
+Se uma parte violar seu acordo, ela perderá todo o dinheiro do canal.
+
+Para este canal de pagamento, os termos do contrato são que ambas as partes
+se comprometem a transmitir apenas a transação mais recente. Qualquer
+transmissão de transações mais antigas causará uma violação do contrato, e
+todos os fundos são entregues à outra parte como penalidade.
+
+Isso só pode ser imposto se for possível atribuir culpa pela transmissão de
+uma transação antiga. Para isso, deve-se ser capaz de identificar de forma
+única quem transmitiu uma transação antiga. Isso pode ser feito se cada
+contraparte tiver uma Transação de Compromisso identificável de forma única.
+Ambas as partes precisam assinar as entradas da Transação de Compromisso pela
+qual a outra parte é responsável pela transmissão. Como cada parte tem uma
+versão da Transação de Compromisso assinada pela outra, cada parte só pode
+transmitir sua própria versão da Transação de Compromisso.
+
+Para a Lightning Network, todos os gastos a partir da saída da Transação de
+Financiamento, as Transações de Compromisso, têm duas transações
+meio-assinadas. Uma Transação de Compromisso na qual Alice assina e entrega
+a Bob (C1b), e outra na qual Bob assina e entrega a Alice (C1a). Essas duas
+Transações de Compromisso gastam a partir da mesma saída (Transação de
+Financiamento) e têm conteúdos diferentes; apenas uma pode ser transmitida
+na blockchain, pois ambos os pares de Transações de Compromisso gastam a
+partir da mesma Transação de Financiamento. Qualquer parte pode transmitir
+sua Transação de Compromisso recebida assinando sua versão e incluindo a
+assinatura da contraparte. Por exemplo, Bob pode transmitir a Transação de
+Compromisso C1b, já que recebeu a assinatura de C1b de Alice \textemdash ele
+inclui a assinatura de Alice e assina C1b ele mesmo. A transação será um
+gasto válido a partir da saída 2-de-2 da Transação de Financiamento, que
+exige tanto a assinatura de Alice quanto a de Bob.
+
+%Diagrama - Transação de financiamento defeituosa
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/funding-broken3.pdf}
+	}
+	\caption{Caixas roxas são transações não transmitidas que apenas Alice
+		pode transmitir. Caixas azuis são transações não transmitidas
+		que apenas Bob pode transmitir. Alice só pode transmitir a
+		Transação de Compromisso 1a, Bob só pode transmitir a
+		Transação de Compromisso 1b. Apenas uma Transação de
+		Compromisso pode ser gasta a partir da saída da Transação de
+		Financiamento. A culpa é atribuída, mas qualquer uma ainda
+		pode ser gasta sem penalidade.
+	}
+\end{figure}
+
+Entretanto, mesmo com essa construção, apenas se atribuiu culpa. Ainda não é
+possível impor esse contrato na blockchain do Bitcoin. Bob ainda confia em
+Alice para não transmitir uma Transação de Compromisso antiga. Neste momento,
+ele apenas é capaz de provar que Alice fez isso por meio de uma prova de
+transação meio-assinada.
+
+\subsection{Criando um Canal com Revogação de Contrato}
+
+Para poder efetivamente impor os termos do contrato, é necessário construir
+uma Transação de Compromisso (junto com seus gastos) na qual seja possível
+revogar uma transação. Essa revogação é alcançável usando dados sobre quando
+uma transação entra na blockchain e usando a maturidade da transação para
+determinar os caminhos de validação.
+
+\subsection{Maturidade de Número de Sequência}
+
+Mark Friedenbach propôs que Números de Sequência possam ser exigíveis via uma
+maturidade relativa de blocos da transação pai através de um
+soft-fork\cite{seqnum}. Isso permitiria alguma habilidade básica de garantir
+alguma forma de bloqueio de tempo baseado em confirmação relativa de blocos
+no script de gasto. Além disso, um opcode adicional,
+OP\_CHECKSEQUENCEVERIFY\cite{csv} (também conhecido como
+OP\_RELATIVECHECKLOCKTIMEVERIFY)\cite{relCLTV}, permitiria habilidades
+adicionais, incluindo permitir uma solução paliativa antes de uma solução
+mais permanente para resolver a maleabilidade de transações. Uma versão
+futura deste artigo incluirá soluções propostas.
+
+Em resumo, o Bitcoin foi lançado com um número de sequência que era exigido
+apenas no mempool de transações não confirmadas. O comportamento original
+permitia a substituição de transações ao substituir transações no mempool por
+novas transações com número de sequência maior. Devido às regras de
+substituição de transações, isso não é imposto devido a riscos de ataque de
+negação de serviço. Aparentemente, a intenção do número de sequência seria
+substituir transações não transmitidas. Entretanto, esse comportamento de
+substituição por número de sequência maior é inexequível. Não é possível
+garantir que versões antigas de transações tenham sido substituídas no
+mempool e que um bloco contenha a versão mais recente da transação. Uma forma
+de impor versões de transação fora da cadeia é via compromissos de tempo.
+
+Uma Transação Revogável gasta a partir de uma saída única em que a transação
+tem um tipo único de script de saída. A saída desse pai tem dois caminhos de
+resgate: o primeiro pode ser resgatado imediatamente, e o segundo só pode ser
+resgatado se o filho tiver um número mínimo de confirmações entre as
+transações. Isso é alcançado fazendo com que o número de sequência da
+transação filho exija um número mínimo de confirmações a partir do pai. Na
+essência, esse novo comportamento de número de sequência só permitirá que um
+gasto dessa saída seja válido se o número de blocos entre a saída e a
+transação que a resgata estiver acima de uma altura de bloco especificada.
+
+Uma transação pode ser revogada com esse comportamento de número de sequência
+criando uma restrição com algum número de blocos definido no número de
+sequência, o que resultará em o gasto só ser válido depois que o pai tenha
+entrado na blockchain por um número definido de blocos. Isso cria uma
+estrutura na qual a transação pai com essa saída se torna um depósito
+caucionado, atestando que não há revogação. Existe um período de tempo no
+qual qualquer um na blockchain pode contestar essa atestação transmitindo um
+gasto imediatamente após a transação ser transmitida.
+
+Se alguém deseja permitir transações revogáveis com um atraso de 1000
+confirmações, a construção da transação de saída permaneceria como um
+multisig 2-de-2:
+
+\begin{lstlisting}
+2 <Alice1> <Bob1> 2 OP_CHECKMULTISIG
+\end{lstlisting}
+
+Entretanto, a transação filho que gasta conteria um valor de nSequence de
+1000. Como essa transação requer a assinatura de ambas as contrapartes para
+ser válida, ambas as partes incluem o número de nSequence 1000 como parte
+da assinatura. Ambas as partes podem, a seu critério, concordar em criar
+outra transação que substitua essa transação sem nenhum número de
+nSequence.
+
+Essa construção, um Contrato de Maturidade de Sequência Revogável (Revocable
+Sequence Maturity Contract, RSMC), cria dois caminhos, com termos contratuais
+muito específicos.
+
+Os termos do contrato são:
+\begin{enumerate}
+	\item Todas as partes pagam um contrato com uma saída que impõe esse
+		contrato
+	\item Ambas as partes podem concordar em enviar fundos para algum
+		contrato, com algum período de espera (1000 confirmações em
+		nosso script de exemplo). Este é o saldo de saída revogável.
+	\item Uma ou ambas as partes podem optar por não transmitir (impor) os
+		pagamentos até uma data futura; qualquer parte pode resgatar
+		os fundos após o período de espera a qualquer momento.
+	\item Se nenhuma das partes transmitiu essa transação (resgatou os
+		fundos), elas podem revogar os pagamentos acima se, e somente
+		se, ambas concordarem em fazê-lo, colocando um novo termo de
+		pagamento em uma transação substitutiva. O novo pagamento da
+		transação pode ser resgatado imediatamente depois que o
+		contrato é divulgado ao mundo (transmitido na blockchain).
+	\item Caso o contrato seja divulgado e a nova estrutura de pagamento
+		não seja resgatada, os termos de pagamento revogados
+		anteriormente podem ser resgatados por qualquer parte (de modo
+		que é responsabilidade de qualquer das partes impor os novos
+		termos).
+\end{enumerate}
+
+A transação filho pré-assinada pode ser resgatada depois que a transação pai
+tiver entrado na blockchain com 1000 confirmações, em razão do número
+nSequence do filho na entrada que gasta o pai.
+
+Para revogar essa transação filho assinada, ambas as partes simplesmente
+concordam em criar outra transação filho com o campo padrão de nSequence
+igual a MAX\_INT, que tem comportamento especial permitindo gasto a qualquer
+momento.
+
+Esse novo gasto assinado substitui o gasto revogável, desde que o novo gasto
+assinado entre na blockchain dentro de 1000 confirmações da entrada do pai
+na blockchain. Na prática, se Alice e Bob concordam em monitorar a
+blockchain em busca de transmissão incorreta de Transações de Compromisso,
+no momento em que a transação é transmitida, eles podem gastar usando a
+transação substitutiva imediatamente. Para transmitir o gasto revogável
+(transação depreciada), que gasta a partir da mesma saída que a transação
+substitutiva, eles devem esperar 1000 confirmações. Desde que ambas as
+partes monitorem a blockchain, o gasto revogável nunca entrará na transação
+se qualquer das partes preferir a transação substitutiva.
+
+Usando essa construção, qualquer um poderia criar uma transação, não
+transmiti-la, e mais tarde criar incentivos para nunca mais transmitir essa
+transação no futuro via penalidades. Isso permite que participantes da rede
+Bitcoin adiem muitas transações de nunca atingirem a blockchain.
+
+\subsubsection{Timestop}
+
+Para mitigar uma inundação de transações por um atacante malicioso, é
+necessária uma ameaça crível de que o ataque falhará.
+
+Greg Maxwell propôs usar um timestop para mitigar uma inundação maliciosa na
+blockchain:
+
+\begin{quote}
+	Existem muitas maneiras de lidar com isso [risco de inundação] que
+	ainda não foram adequadamente exploradas \textemdash por exemplo, o
+	relógio pode parar quando os blocos estão cheios, transformando o
+	risco de segurança em mais atraso de retenção em caso de um ataque de
+	negação de serviço.\cite{gregtimestop}
+\end{quote}
+
+Isso pode ser mitigado permitindo que o minerador especifique se o mempool
+atual (taxa paga) está sendo inundado com transações. Eles podem entrar com
+um valor ``1'' no último bit do número de versão do cabeçalho do bloco. Se o
+último bit no cabeçalho do bloco contiver ``1'', então esse bloco não contará
+para a maturidade de altura relativa do valor de nSequence, e o bloco é
+designado como um bloco congestionado. Existe uma altura de bloco não
+congestionada (que é sempre menor que a altura de bloco normal). Essa altura
+de bloco é usada para o valor de nSequence, que só conta a maturidade do
+bloco (confirmações).
+
+Um minerador pode optar por definir o bloco como bloco congestionado ou não.
+O código padrão poderia definir automaticamente o flag de bloco congestionado
+como ``1'' se o mempool estiver acima de algum tamanho e a taxa média desse
+conjunto de tamanhos estiver acima de algum valor. Entretanto, um minerador
+tem total discricionariedade para alterar as regras de quando algo é
+automaticamente definido como bloco congestionado, ou pode optar por definir
+permanentemente o flag de congestionamento como permanentemente ligado ou
+desligado. Espera-se que a maioria dos mineradores honestos use o
+comportamento padrão definido em seus mineradores e não organize um ataque
+de 51\%.
+
+Por exemplo, se uma saída de transação pai é gasta por um filho com um valor
+de nSequence de 10, deve-se esperar 10 confirmações antes que a transação
+se torne válida. Entretanto, se o flag de timestop foi definido, a contagem
+de confirmações para, mesmo com novos blocos. Se 6 confirmações se
+passaram (mais 4 são necessárias para que a transação seja válida), e o
+bloco timestop foi definido no 7º bloco, esse bloco não conta para o
+requisito de nSequence de 10 confirmações; o filho ainda está em 6 blocos
+para o valor de confirmação relativa. Funcionalmente, isso será armazenado
+como algum tipo de altura de bloco auxiliar de timestop usada apenas para
+rastrear o valor do timestop. Quando o bit de timestop estiver definido,
+todas as transações que usam um valor de nSequence pararão de contar até que
+o bit de timestop seja desativado. Isso fornece tempo e espaço de bloco
+suficientes para que transações na altura de bloco auxiliar atual de
+timestop entrem na blockchain, o que pode evitar que atacantes sistêmicos
+ataquem o sistema com sucesso.
+
+Entretanto, isso requer algum tipo de flag no bloco para designar se ele é
+um bloco timestop. Para compatibilidade completa com SPV (Simple Payment
+Verification; clientes leves), é desejável que isso esteja dentro do
+cabeçalho de bloco de 80 bytes, em vez de no coinbase. Existem dois lugares
+que podem ser bons para colocar esse flag no cabeçalho do bloco: no horário
+do bloco e na versão do bloco. O horário do bloco pode não ser seguro porque
+os últimos bits são usados como fonte de entropia por alguns mineradores
+ASIC, então um bit pode precisar ser consumido para flags de timestop. Outra
+opção seria codificar a ativação de timestop como uma regra rígida de
+consenso (por exemplo, via tamanho do bloco), no entanto isso pode tornar
+as coisas menos flexíveis. Ao definir padrões sensatos para as regras de
+timestop, essas regras podem ser alteradas sem soft-forks de consenso.
+
+Se a versão do bloco for usada como um flag, a informação contextual deve
+corresponder ao Chain ID usado em algumas moedas com mineração combinada
+(merge-mined).
+
+\subsubsection{Transações de Compromisso Revogáveis}
+
+Ao combinar a atribuição de culpa com a transação revogável, pode-se
+determinar quando uma parte não está cumprindo os termos do contrato e
+impor penalidades sem confiar na contraparte.
+
+%Diagrama - Transação de Financiamento e todos os gastos do Compromisso 1
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/funding-full.pdf}
+	}
+	\caption{A Transação de Financiamento F, designada em verde, é
+		transmitida na blockchain após todas as outras transações
+		serem assinadas. Todas as transações que apenas Alice pode
+		transmitir estão em roxo. Todas as transações que apenas Bob
+		pode transmitir estão em azul. Apenas a Transação de
+		Financiamento é transmitida na blockchain neste momento.
+	}
+\end{figure}
+
+A intenção de criar uma nova Transação de Compromisso é invalidar todas as
+Transações de Compromisso antigas ao atualizar o novo saldo com uma nova
+Transação de Compromisso. A invalidação de transações antigas pode ocorrer
+fazendo de uma saída um Contrato de Maturidade de Sequência Revogável
+(RSMC). Para invalidar uma transação, uma transação substitutiva será
+assinada e trocada por ambas as partes, que entrega todos os fundos à
+contraparte caso uma transação mais antiga seja incorretamente transmitida.
+A transmissão incorreta é identificada criando duas Transações de
+Compromisso diferentes com as mesmas saídas de saldo final, no entanto, o
+pagamento a si mesmo é onerado por um RSMC.
+
+Na prática, existem duas Transações de Compromisso a partir de uma única
+saída 2-de-2 da Transação de Financiamento. Dessas duas Transações de
+Compromisso, apenas uma pode entrar na blockchain. Cada parte do canal tem
+uma versão desse contrato. Assim, se este é o primeiro par de Transações de
+Compromisso, a Transação de Compromisso de Alice é definida como C1a, e a
+de Bob como C1b. Ao transmitir uma Transação de Compromisso, está-se
+solicitando o fechamento e o encerramento do canal. As duas primeiras
+saídas da Transação de Compromisso incluem uma Transação de Entrega
+(pagamento) do saldo presente não alocado às contrapartes do canal. Se
+Alice transmite C1a, uma das saídas pode ser gasta por D1a, que envia
+fundos para Bob. Para Bob, C1b pode ser gasta por D1b, que envia fundos a
+Alice. A Transação de Entrega (D1a/D1b) é imediatamente resgatável e não é
+onerada de forma alguma caso a Transação de Compromisso seja transmitida.
+
+Para a Transação de Compromisso de cada parte, eles atestam que estão
+transmitindo a Transação de Compromisso mais recente que possuem. Como
+estão atestando que esse é o saldo atual, o saldo pago à contraparte é
+assumido como verdadeiro, já que não há benefício direto em pagar fundos à
+contraparte como penalidade.
+
+O saldo pago à pessoa que transmitiu a Transação de Compromisso, porém, é
+não verificado. Os participantes na blockchain não têm como saber se a
+Transação de Compromisso é a mais recente ou não. Se eles não transmitirem
+sua versão mais recente, serão penalizados ao terem todos os fundos do
+canal entregues à contraparte. Como seus próprios fundos estão onerados em
+seu próprio RSMC, eles só poderão reivindicar seus fundos após um número
+estipulado de confirmações depois que a Transação de Compromisso for
+incluída em um bloco (em nosso exemplo, 1000 confirmações). Se eles
+transmitirem sua Transação de Compromisso mais recente, não deve haver
+transação de revogação substituindo a transação revogável, então eles
+poderão receber seus fundos após algum período definido de tempo (1000
+confirmações).
+
+Sabendo quem transmitiu a Transação de Compromisso e onerando seus próprios
+pagamentos para que fiquem bloqueados por um período de tempo predefinido,
+ambas as partes poderão revogar a Transação de Compromisso no futuro.
+
+\subsubsection{Resgatando Fundos do Canal: Contrapartes Cooperativas}
+
+Qualquer parte pode resgatar os fundos do canal. Entretanto, a parte que
+transmite a Transação de Compromisso deve esperar pelo número predefinido de
+confirmações descrito no RSMC. A contraparte que não transmitiu a Transação
+de Compromisso pode resgatar os fundos imediatamente.
+
+Por exemplo, se a Transação de Financiamento é comprometida com 1 BTC
+(metade para cada contraparte) e Bob transmite a Transação de Compromisso
+mais recente, C1b, ele deve esperar 1000 confirmações para receber seus
+0,5 BTC, enquanto Alice pode gastar 0,5 BTC. Para Alice, essa transação
+está totalmente encerrada se Alice concordar que Bob transmitiu a Transação
+de Compromisso correta (C1b).
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/funding-full-bob-spend.pdf}
+	}
+	\caption{Quando Bob transmite C1b, Alice pode resgatar sua parte
+		imediatamente. Bob deve esperar 1000 confirmações. Quando o
+		bloco é imediatamente transmitido, ele está neste estado.
+		Transações em verde são transações comprometidas na
+		blockchain.
+	}
+\end{figure}
+
+Após a Transação de Compromisso estar na blockchain por 1000 blocos, Bob
+pode então transmitir a transação de Entrega Revogável. Ele deve esperar
+1000 blocos para provar que não revogou essa Transação de Compromisso
+(C1b). Após 1000 blocos, a transação de Entrega Revogável poderá ser
+incluída em um bloco. Se uma parte tentar incluir a transação de Entrega
+Revogável em um bloco antes de 1000 confirmações, a transação será
+inválida até que se passem 1000 confirmações (quando se tornará válida se
+a saída ainda não tiver sido resgatada).
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/funding-full-bob-redeem.pdf}
+	}
+	\caption{Alice concorda que Bob transmitiu a Transação de Compromisso
+		correta e 1000 confirmações se passaram. Bob então pode
+		transmitir a transação de Entrega Revogável (RD1b) na
+		blockchain.
+	}
+\end{figure}
+
+Depois que Bob transmite a transação de Entrega Revogável, o canal é
+totalmente fechado tanto para Alice quanto para Bob; todos receberam os
+fundos que ambos concordam ser o saldo atual que cada um possui no canal.
+
+Se em vez disso fosse Alice quem transmitiu a Transação de Compromisso
+(C1a), seria ela quem deveria esperar 1000 confirmações em vez de Bob.
+
+\subsubsection{Criando uma nova Transação de Compromisso e Revogando
+Compromissos Anteriores}
+
+Embora cada parte possa fechar a Transação de Compromisso mais recente a
+qualquer momento, elas também podem optar por criar uma nova Transação de
+Compromisso e invalidar a antiga.
+
+Suponha que Alice e Bob queiram agora atualizar seus saldos atuais de 0,5
+BTC cada para 0,6 BTC para Bob e 0,4 BTC para Alice. Quando ambos
+concordam em fazê-lo, geram um novo par de Transações de Compromisso.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/newcommit-simple.pdf}
+	}
+	\caption{Quatro transações possíveis podem existir, um par com os
+		compromissos antigos e outro par com os novos compromissos.
+		Cada parte dentro do canal só pode transmitir metade dos
+		compromissos totais (dois para cada). Não há imposição
+		explícita impedindo a transmissão de um Compromisso
+		específico além dos gastos de penalidade, pois todos são
+		gastos não transmitidos válidos. O Compromisso Revogável ainda
+		existe com o par C1a/C1b, mas não é exibido por brevidade.
+	}
+\end{figure}
+
+Quando um novo par de Transações de Compromisso (C2a/C2b) é acordado,
+ambas as partes assinam e trocam assinaturas para a nova Transação de
+Compromisso e, em seguida, invalidam a antiga. Essa invalidação ocorre
+fazendo com que ambas as partes assinem uma Transação de Remediação de
+Quebra (Breach Remedy Transaction, BR1), que substitui a Transação de
+Entrega Revogável (RD1). Cada parte entrega à outra uma revogação
+meio-assinada (BR1) a partir de sua própria Entrega Revogável (RD1), que é
+um gasto a partir da Transação de Compromisso. A Transação de Remediação
+de Quebra enviará todas as moedas à contraparte no saldo atual do canal.
+Por exemplo, se Alice e Bob geram um novo par de Transações de Compromisso
+(C2a/C2b) e invalidam compromissos anteriores (C1a/C1b), e posteriormente
+Bob transmite incorretamente C1b na blockchain, Alice pode tomar todo o
+dinheiro de Bob no canal. Alice pode fazer isso porque Bob provou a Alice
+via penalidade que ele nunca transmitirá C1b, pois no momento em que ele
+transmitir C1b, Alice é capaz de tomar todo o dinheiro de Bob no canal. Na
+prática, ao construir uma transação de Remediação de Quebra para a
+contraparte, atestou-se que não se transmitirá nenhum compromisso anterior.
+A contraparte pode aceitar isso, porque receberá todo o dinheiro do canal
+quando esse acordo for violado.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1.3\linewidth]{figures/newcommit-br.pdf}
+	}
+	\caption{
+		Quando C2a e C2b existem, ambas as partes trocam Transações
+		de Remediação de Quebra. Ambas as partes agora têm incentivo
+		econômico explícito para evitar a transmissão de Transações
+		de Compromisso antigas (C1a/C1b). Se qualquer parte desejar
+		fechar o canal, usará apenas C2a (Alice) ou C2b (Bob). Se
+		Alice transmitir C1a, todo o dinheiro dela vai para Bob. Se
+		Bob transmitir C1b, todo o seu dinheiro vai para Alice. Veja
+		a figura anterior para as saídas de C2a/C2b.
+	}
+\end{figure}
+
+Devido a esse fato, é provável que se apague todas as Transações de
+Compromisso anteriores quando uma Transação de Remediação de Quebra tiver
+sido entregue à contraparte. Se alguém transmitir uma Transação de
+Compromisso incorreta (depreciada e invalidada), todo o dinheiro irá para
+a contraparte. Por exemplo, se Bob transmitir C1b, contanto que Alice
+monitore a blockchain dentro do número predefinido de blocos (neste caso,
+1000 blocos), Alice poderá tomar todo o dinheiro deste canal transmitindo
+RD1b. Mesmo que o saldo atual do estado do Compromisso (C2a/C2b) seja
+0,4 BTC para Alice e 0,6 BTC para Bob, como Bob violou os termos do
+contrato, todo o dinheiro vai para Alice como penalidade. Funcionalmente, a
+Transação Revogável atua como prova para a blockchain de que Bob violou os
+termos do canal, e isso é programaticamente julgado pela blockchain.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1.3\linewidth]{figures/newcommit-penalty.pdf}
+	}
+	\caption{
+		Transações em verde estão comprometidas na blockchain. Bob
+		transmite incorretamente C1b (apenas Bob pode transmitir
+		C1b/C2b). Como ambos concordaram que o estado atual é o par
+		de Compromissos C2a/C2b, e atestaram, a cada parte, que
+		compromissos antigos foram invalidados por meio de Transações
+		de Remediação de Quebra, Alice pode transmitir BR1b e tomar
+		todo o dinheiro do canal, contanto que o faça dentro de 1000
+		blocos após C1b ser transmitido.
+	}
+\end{figure}
+
+Entretanto, se Alice não transmitir BR1b dentro de 1000 blocos, Bob pode
+conseguir roubar algum dinheiro, já que sua Transação de Entrega Revogável
+(RD1b) se torna válida após 1000 blocos. Quando uma Transação de Compromisso
+incorreta é transmitida, apenas a Transação de Remediação de Quebra pode
+ser transmitida por 1000 blocos (ou qualquer número de confirmações com
+que ambas as partes concordem). Após 1000 confirmações de bloco, tanto a
+Remediação de Quebra (BR1b) quanto as Transações de Entrega Revogável (RD1b)
+podem ser transmitidas a qualquer momento. As transações de Remediação de
+Quebra só têm exclusividade dentro desse período predefinido, e qualquer
+tempo após isso é funcionalmente uma expiração do prazo prescricional
+\textemdash de acordo com o consenso da blockchain do Bitcoin, o tempo
+para disputa acabou.
+
+Por essa razão, deve-se monitorar periodicamente a blockchain para verificar
+se a contraparte transmitiu uma Transação de Compromisso invalidada, ou
+delegar isso a um terceiro. Um terceiro pode ser delegado dando a ele
+apenas a transação de Remediação de Quebra. Esse terceiro pode ser
+incentivado a monitorar a blockchain transmitindo tal transação em caso de
+malícia da contraparte, dando-lhe alguma taxa na saída. Como o terceiro só
+pode agir quando a contraparte está agindo maliciosamente, esse terceiro não
+tem poder para forçar o fechamento do canal.
+
+\subsubsection{Processo para Criação de Transações de Compromisso Revogáveis}
+
+Para criar Transações de Compromisso revogáveis, é necessária uma
+construção adequada do canal desde o início, assinando apenas transações que
+possam ser transmitidas a qualquer momento no futuro, ao mesmo tempo em que
+se garante que não se perderá devido a contrapartes não cooperativas ou
+maliciosas. Isso requer determinar qual chave pública usar para novos
+compromissos, já que o uso de SIGHASH\_NOINPUT exige usar chaves únicas para
+cada saída RSMC (e HTLC) de Transação de Compromisso. Usamos $P$ para
+designar chaves públicas e $K$ para designar a chave privada correspondente
+usada para assinar.
+
+Ao gerar a primeira Transação de Compromisso, Alice e Bob concordam em criar
+uma saída multisig a partir de uma Transação de Financiamento com uma única
+saída $multisig(P_{AliceF}, P_{BobF})$, financiada com 0,5 BTC de Alice e
+Bob, totalizando 1 BTC. Essa saída é uma transação Pay to Script
+Hash\cite{p2sh}, que exige que Alice e Bob concordem para gastar a partir da
+Transação de Financiamento. Eles ainda não tornam a Transação de
+Financiamento (F) gastável. Além disso, $P_{AliceF}$ e $P_{BobF}$ são usados
+apenas para a Transação de Financiamento; não são usados para mais nada.
+
+Como a transação de Entrega é apenas uma saída P2PKH (endereços bitcoin que
+começam com 1) ou uma transação P2SH (comumente reconhecida como endereços
+que começam com 3) que as contrapartes designam antecipadamente, isso pode
+ser gerado como uma saída de $P_{AliceD}$ e $P_{BobD}$. Para simplificar,
+esses endereços de saída permanecerão os mesmos ao longo do canal, já que os
+fundos são totalmente controlados pelo destinatário designado depois que a
+Transação de Compromisso entra na blockchain. Se desejado, mas não
+necessário, ambas as partes podem atualizar e alterar $P_{AliceD}$ e
+$P_{BobD}$ para futuras Transações de Compromisso.
+
+Ambas as partes trocam as chaves públicas que pretendem usar para o RSMC
+(e o HTLC descrito em seções futuras) para a Transação de Compromisso. Cada
+conjunto de Transações de Compromisso usa suas próprias chaves públicas e
+nunca são reutilizadas. Ambas as partes podem já conhecer todas as chaves
+públicas futuras usando uma construção de Carteira HD BIP 0032\cite{bip32}
+ao trocar Chaves Públicas Mestre durante a construção do canal. Se
+desejarem gerar um novo par de Transações de Compromisso C2a/C2b, usam
+multisig($P_{AliceRSMC2}$, $P_{BobRSMC2}$) para a saída do RSMC.
+
+Após ambas as partes conhecerem os valores de saída das Transações de
+Compromisso, ambas criam o par de Transações de Compromisso, por exemplo
+C2a/C2b, mas não trocam assinaturas para as Transações de Compromisso.
+Ambas assinam a transação de Entrega Revogável (RD2a/RD2b) e trocam as
+assinaturas. Bob assina RD1a e a entrega a Alice (usando $K_{BobRSMC2}$),
+enquanto Alice assina RD1b e a entrega a Bob (usando $K_{AliceRSMC2}$).
+
+Quando ambas as partes têm a transação de Entrega Revogável, elas trocam
+assinaturas para as Transações de Compromisso. Bob assina C1a usando
+$K_{BobF}$ e a entrega a Alice, e Alice assina C1b usando $K_{AliceF}$ e a
+entrega a Bob.
+
+Neste ponto, tanto a Transação de Compromisso anterior quanto a nova podem
+ser transmitidas; tanto C1a/C1b quanto C2a/C2b são válidas. (Note que
+Compromissos mais antigos que o Compromisso anterior são invalidados via
+penalidades.) Para invalidar C1a e C1b, ambas as partes trocam assinaturas
+de Transação de Remediação de Quebra (BR1a/BR1b) para o compromisso
+anterior C1a/C1b. Alice envia BR1a a Bob usando $K_{AliceRSMC1}$, e Bob
+envia BR1b a Alice usando $K_{BobRSMC1}$. Quando ambas as assinaturas de
+Remediação de Quebra forem trocadas, o estado do canal está agora no
+Compromisso atual C2a/C2b e os saldos estão agora comprometidos.
+
+Entretanto, em vez de divulgar as assinaturas de BR1a/BR1b, também é
+possível apenas divulgar as chaves privadas à contraparte. Isso é mais
+eficiente, conforme descrito mais adiante na seção de armazenamento de
+chaves. Pode-se divulgar as chaves privadas usadas na própria Transação de
+Compromisso. Por exemplo, se Bob deseja invalidar C1b, ele envia suas
+chaves privadas usadas em C1b a Alice (ele \textit{NÃO} divulga suas chaves
+usadas em C1a, pois isso permitiria roubo de moedas). De forma similar,
+Alice divulga a Bob todas as suas chaves privadas das saídas em C1a para
+invalidar C1a.
+
+Se Bob transmitir incorretamente C1b, então, como Alice tem todas as chaves
+privadas usadas nas saídas de C1b, ela pode tomar o dinheiro. Entretanto,
+apenas Bob é capaz de transmitir C1b. Para prevenir esse risco de roubo de
+moedas, Bob deve destruir todas as Transações de Compromisso antigas.
+
+\subsection{Fechando um Canal de Forma Cooperativa}
+
+Ambas as partes podem enviar quantos pagamentos desejarem à sua contraparte,
+desde que tenham fundos disponíveis no canal, sabendo que, em caso de
+divergências, podem transmitir à blockchain o estado atual a qualquer
+momento.
+
+Na grande maioria dos casos, todas as saídas da Transação de Financiamento
+nunca serão transmitidas na blockchain. Elas estão lá apenas no caso de a
+outra parte não ser cooperativa, assim como um contrato raramente é
+executado nos tribunais. Uma capacidade comprovada de o contrato ser
+imposto de forma determinística é incentivo suficiente para que ambas as
+partes ajam honestamente.
+
+Quando qualquer parte deseja fechar um canal de forma cooperativa, ela
+poderá fazê-lo contatando a outra parte e gastando a partir da Transação
+de Financiamento com uma saída da Transação de Compromisso mais atual,
+diretamente, sem qualquer condição onerando o script. Nenhum pagamento
+adicional pode ocorrer no canal.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/cooperative-close.pdf}
+	}
+	\caption{Se ambas as contrapartes são cooperativas, elas tomam os
+		saldos da Transação de Compromisso atual e gastam a partir da
+		Transação de Financiamento com uma Transação de Liquidação por
+		Exercício (Exercise Settlement, ES). Se em vez disso a
+		Transação de Compromisso mais recente for transmitida, o
+		pagamento (menos taxas) será o mesmo.
+	}
+\end{figure}
+
+O propósito do fechamento cooperativo é reduzir o número de transações que
+ocorrem na blockchain, e ambas as partes poderão receber seus fundos
+imediatamente (em vez de uma parte esperar que a transação de Entrega
+Revogável se torne válida).
+
+Os canais podem permanecer em perpetuidade até que decidam encerrar a
+transação de forma cooperativa, ou quando uma parte não coopera com a outra
+e o canal é fechado e imposto na blockchain.
+
+\subsection{Implicações e Resumo dos Canais Bidirecionais}
+
+Ao garantir que os canais só possam ser atualizados com o consentimento de
+ambas as partes, é possível construir canais que existem perpetuamente na
+blockchain. Ambas as partes podem atualizar o saldo dentro do canal com
+quaisquer saldos de saída desejados, desde que sejam iguais ou inferiores
+ao total de fundos comprometidos na Transação de Financiamento; os saldos
+podem se mover em ambas as direções. Se uma parte se tornar maliciosa,
+qualquer parte pode fechar imediatamente o canal e transmitir o estado mais
+atual à blockchain. Usando uma construção de caução de fidelidade
+(Transações de Entrega Revogáveis), se uma parte violar os termos do
+canal, os fundos serão enviados à contraparte, contanto que a prova da
+violação (Transação de Remediação de Quebra) seja inserida na blockchain de
+forma tempestiva. Se ambas as partes forem cooperativas, o canal pode
+permanecer aberto indefinidamente, possivelmente por muitos anos.
+
+Esse tipo de construção só é possível porque a adjudicação ocorre
+programaticamente na blockchain como parte do consenso do Bitcoin, de modo
+que não é necessário confiar na outra parte. Como resultado, a contraparte
+do canal não detém a custódia ou o controle total dos fundos.
+
+\section{Contrato Timelock com Hash (HTLC)}
+
+Um canal de pagamento bidirecional só permite a transferência segura de
+fundos dentro de um canal. Para poder construir transferências seguras
+usando uma rede de canais ao longo de múltiplos saltos até o destino final,
+é necessária uma construção adicional: o Contrato Timelock com Hash
+(Hashed Timelock Contract, HTLC).
+
+O propósito de um HTLC é permitir um estado global entre múltiplos nós via
+hashes. Esse estado global é garantido por compromissos de tempo e pelo
+desbloqueio temporizado de recursos via divulgação de pré-imagens. O
+``travamento'' transacional ocorre globalmente via compromissos; em qualquer
+momento no tempo, um único participante é responsável por divulgar ao
+próximo participante se tem conhecimento da pré-imagem $R$. Essa construção
+não requer confiança custodial na contraparte do canal, nem em qualquer
+outro participante da rede.
+
+Para alcançar isso, um HTLC deve ser capaz de criar certas transações que
+só são válidas após uma certa data, usando nLockTime, bem como a divulgação
+de informações à contraparte do canal. Adicionalmente, esses dados devem ser
+revogáveis, pois é necessário poder desfazer um HTLC.
+
+Um HTLC também é um contrato de canal com a contraparte que é exigível via
+blockchain. As contrapartes em um canal concordam com os seguintes termos
+para um Contrato Timelock com Hash:
+
+\begin{enumerate}
+	\item Se Bob conseguir produzir a Alice um dado aleatório de entrada de
+		20 bytes desconhecido $R$ a partir de um hash conhecido $H$,
+		dentro de três dias, então Alice liquidará o contrato pagando
+		a Bob 0,1 BTC.
+
+	\item Se três dias se passarem, a cláusula acima é nula e sem efeito, e
+		o processo de compensação é invalidado; ambas as partes não
+		devem tentar liquidar e reivindicar pagamento após três dias.
+
+	\item Qualquer parte pode (e deve) pagar conforme os termos deste
+		contrato em qualquer método escolhido pelos participantes e
+		encerrar este contrato antecipadamente, contanto que ambos os
+		participantes concordem.
+
+	\item A violação dos termos acima incorrerá em uma penalidade máxima dos
+		fundos bloqueados neste contrato, a serem pagos à contraparte
+		não violadora como uma caução de fidelidade.
+
+\end{enumerate}
+
+Para clareza nos exemplos, usamos dias para HTLCs e altura de bloco para
+RSMCs. Na realidade, o HTLC também deveria ser definido como altura de bloco
+(por exemplo, 3 dias equivalem a 432 blocos).
+
+Na prática, deseja-se construir um pagamento contingente ao conhecimento de
+$R$ pelo destinatário dentro de um determinado prazo. Após esse prazo, os
+fundos são reembolsados ao remetente.
+
+De forma similar aos RSMCs, esses termos contratuais são impostos
+programaticamente na blockchain do Bitcoin e não requerem confiança na
+contraparte para aderir aos termos do contrato, já que todas as violações
+são penalizadas por meio de cauções de fidelidade unilateralmente
+exigíveis, que são construídas usando transações de penalidade que gastam a
+partir dos estados de compromisso. Se Bob conhecer $R$ dentro de três dias,
+ele pode resgatar os fundos transmitindo uma transação; Alice não tem como
+reter os fundos de nenhuma forma, porque o script retorna como válido quando
+a transação é gasta na blockchain do Bitcoin.
+
+Um HTLC é uma saída adicional em uma Transação de Compromisso com um script
+de saída único:
+
+\begin{lstlisting}
+OP_IF
+	OP_HASH160 <Hash160(R)> OP_EQUALVERIFY
+	2 <Alice2> <Bob2> OP_CHECKMULTISIG
+OP_ELSE
+	2 <Alice1> <Bob1> OP_CHECKMULTISIG
+OP_ENDIF
+\end{lstlisting}
+
+Conceitualmente, esse script tem dois caminhos possíveis de gasto a partir
+de uma única saída HTLC. O primeiro caminho (definido no OP\_IF) envia
+fundos a Bob se Bob produzir $R$. O segundo caminho é resgatado usando um
+reembolso a Alice com timelock de 3 dias. O timelock de 3 dias é imposto
+usando nLockTime na transação que gasta.
+
+\subsection{Construção de HTLC Não Revogável}
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/htlc-concept.pdf}
+	}
+	\caption{Esta é uma implementação ingênua e não funcional de um HTLC.
+		Apenas o caminho do HTLC a partir da Transação de Compromisso
+		é exibido. Note que há dois gastos possíveis a partir de uma
+		saída HTLC. Se Bob conseguir produzir a pré-imagem $R$ dentro
+		de 3 dias, ele pode resgatar o caminho 1. Após três dias,
+		Alice pode transmitir o caminho 2. Quando 3 dias se passam,
+		qualquer um é válido. Esse modelo, contudo, não funciona com
+		múltiplas Transações de Compromisso.
+	}
+\end{figure}
+
+Se $R$ for produzido dentro de 3 dias, Bob pode resgatar os fundos
+transmitindo a transação ``Entrega''. Um requisito para que a transação
+``Entrega'' seja válida exige que $R$ seja incluído com a transação. Se $R$
+não for incluído, a transação ``Entrega'' é inválida. No entanto, se 3 dias
+se passaram, os fundos podem ser devolvidos a Alice transmitindo a transação
+``Timeout''. Quando 3 dias se passaram e $R$ foi divulgado, qualquer das
+transações pode ser válida.
+
+É responsabilidade individual de ambas as partes garantir que possam fazer
+sua transação entrar na blockchain para garantir que os saldos estejam
+corretos. Para Bob, a fim de receber os fundos, ele deve transmitir a
+transação ``Entrega'' na blockchain do Bitcoin, ou então liquidar com Alice
+(cancelando o HTLC). Para Alice, ela deve transmitir o ``Timeout'' daqui a
+3 dias para receber o reembolso, ou cancelar o HTLC inteiramente com Bob.
+
+Ainda assim, esse tipo de construção simplista tem problemas semelhantes
+aos de uma construção incorreta de canal de pagamento bidirecional. Quando
+uma Transação de Compromisso antiga é transmitida, qualquer parte pode
+tentar roubar fundos, já que ambos os caminhos podem ser válidos a
+posteriori. Por exemplo, se $R$ for divulgado 1 ano depois e uma Transação
+de Compromisso incorreta for transmitida, ambos os caminhos são válidos e
+resgatáveis por qualquer das partes; o contrato ainda não é exigível na
+blockchain. O encerramento do HTLC é absolutamente necessário, porque para
+Alice obter seu reembolso, ela deve encerrar o contrato e recebê-lo. Caso
+contrário, quando Bob descobrir $R$ depois que 3 dias se passaram, ele
+poderá roubar os fundos que deveriam ir para Alice. Com contrapartes não
+cooperativas, não é possível encerrar um HTLC sem transmiti-lo à blockchain
+do Bitcoin, já que a parte não cooperativa não estará disposta a criar uma
+nova Transação de Compromisso.
+
+\subsection{HTLC Revogável Off-chain}
+
+Para poder encerrar esse contrato off-chain sem uma transmissão à
+blockchain do Bitcoin, é necessário embutir RSMCs na saída, que terão uma
+construção similar à do canal bidirecional.
+
+\begin{figure}[H]
+	\vspace*{-2cm}
+	\makebox[\linewidth]{
+		\includegraphics[width=1.3\linewidth]{figures/htlc-functional.pdf}
+	}
+	\caption{Se Alice transmitir C2a, então a metade esquerda será
+		executada. Se Bob transmitir C2b, então a metade direita
+		será executada. Qualquer parte pode transmitir sua Transação
+		de Compromisso a qualquer momento. O Timeout do HTLC só é
+		válido após 3 dias. As Execuções do HTLC só podem ser
+		transmitidas se a pré-imagem do hash $R$ for conhecida.
+		Compromissos anteriores (e suas transações dependentes) não
+		são exibidos por brevidade.
+	}
+\end{figure}
+
+Suponha que Alice e Bob queiram atualizar seu saldo no canal no
+Compromisso 1, com um saldo de 0,5 para Alice e 0,5 para Bob.
+
+Alice deseja enviar 0,1 a Bob contingente ao conhecimento de $R$ dentro de
+3 dias; após 3 dias, ela quer seu dinheiro de volta caso Bob não produza
+$R$.
+
+A nova Transação de Compromisso terá um reembolso total do saldo atual a
+Alice e Bob (Saídas 0 e 1), com a saída 2 sendo o HTLC, que descreve os
+fundos em trânsito. Como 0,1 estará onerado em um HTLC, o saldo de Alice é
+reduzido para 0,4 e o de Bob permanece o mesmo em 0,5.
+
+Essa nova Transação de Compromisso (C2a/C2b) terá uma saída HTLC com dois
+gastos possíveis. Cada gasto é diferente, dependendo da versão da Transação
+de Compromisso de cada contraparte. De forma similar ao canal de
+pagamento bidirecional, quando uma parte transmite seu Compromisso, os
+pagamentos à contraparte serão presumidos válidos e não serão invalidados.
+Isso pode ocorrer porque, ao transmitir uma Transação de Compromisso,
+está-se atestando que essa é a Transação de Compromisso mais recente. Se
+for a mais recente, está-se também atestando que o HTLC existe e não foi
+invalidado antes; portanto, pagamentos potenciais à contraparte devem ser
+válidos.
+
+Note que os nomes de transações HTLC (começando com a letra H) começarão
+com o número 1, cujos valores não se correlacionam com as Transações de
+Compromisso. Esta é simplesmente a primeira transação HTLC. As transações
+HTLC podem persistir entre Transações de Compromisso. Cada HTLC tem 4
+chaves por lado da transação (C2a e C2b), totalizando 8 chaves por
+contraparte.
+
+A saída HTLC na Transação de Compromisso tem dois conjuntos de chaves por
+contraparte na saída.
+
+Para a Transação de Compromisso de Alice (C2a), o script de saída HTLC
+requer $multisig(P_{Alice2}, P_{Bob2})$ onerado pela divulgação de $R$,
+bem como $multisig(P_{Alice1}, P_{Bob1})$ sem oneração.
+
+Para a Transação de Compromisso de Bob (C2b), o script de saída HTLC requer
+$multisig(P_{Alice6}, P_{Bob6})$ onerado pela divulgação de $R$, bem como
+$multisig(P_{Alice5}, P_{Bob5})$ sem oneração.
+
+Os estados de saída do HTLC são diferentes dependendo de qual Transação de
+Compromisso é transmitida.
+
+\subsubsection{HTLC quando o Remetente Transmite a Transação de Compromisso}
+
+Para o remetente (Alice), a transação ``Entrega'' é enviada como uma
+transação de Entrega de Execução do HTLC (HTLC Execution Delivery, HED1a),
+que não é onerada em um RSMC. Assume-se que esse HTLC nunca foi encerrado
+off-chain, já que Alice atesta que a Transação de Compromisso transmitida é
+a mais recente. Se Bob conseguir produzir a pré-imagem $R$, ele poderá
+resgatar fundos do HTLC depois que a Transação de Compromisso for
+transmitida na blockchain. Esta transação consome $multisig(P_{Alice2},
+P_{Bob2})$ se Alice transmitir seu Compromisso C2a. Apenas Bob pode
+transmitir HED1a, já que apenas Alice deu sua assinatura de HED1a a Bob.
+
+Entretanto, se 3 dias se passaram desde a formação do HTLC, Alice poderá
+transmitir uma transação ``Timeout'', a transação de Timeout do HTLC
+(HT1a). Essa transação é um RSMC. Consome a saída $multisig(P_{Alice1},
+P_{Bob1})$ sem exigir divulgação de $R$ se Alice transmitir C2a. Essa
+transação não pode entrar na blockchain até que 3 dias se passem. A saída
+para essa transação é um RSMC com $multisig(P_{Alice3}, P_{Bob3})$ com
+maturidade relativa de 1000 blocos, e $multisig(P_{Alice4}, P_{Bob4})$ sem
+requisito de maturidade de confirmação. Apenas Alice pode transmitir HT1a,
+já que apenas Bob deu sua assinatura de HT1a a Alice.
+
+Após HT1a entrar na blockchain e 1000 confirmações de bloco ocorrerem, uma
+transação de Entrega Revogável do Timeout do HTLC (HTLC Timeout Revocable
+Delivery, HTRD1a) pode ser transmitida por Alice, consumindo
+$multisig(P_{Alice3}, P_{Bob3})$. Apenas Alice pode transmitir HTRD1a 1000
+blocos após HT1a ser transmitida, já que apenas Bob deu sua assinatura de
+HTRD1a a Alice. Essa transação pode ser revogável quando outra transação
+substitui HTRD1a usando $multisig(P_{Alice4}, P_{Bob4})$, que não tem
+nenhum requisito de maturidade de bloco.
+
+\subsubsection{HTLC quando o Destinatário Transmite a Transação de Compromisso}
+
+Para o destinatário potencial (Bob), o ``Timeout'' de recebimento é
+reembolsado como uma transação de Entrega de Timeout do HTLC (HTLC Timeout
+Delivery, HTD1b). Essa transação reembolsa diretamente os fundos ao
+remetente original (Alice) e não é onerada em um RSMC. Assume-se que esse
+HTLC nunca foi encerrado off-chain, já que Bob atesta que a Transação de
+Compromisso transmitida (C2b) é a mais recente. Se 3 dias se passaram,
+Alice pode transmitir HTD1b e levar o reembolso. Essa transação consome
+$multisig(P_{Alice5}, P_{Alice5})$ se Bob transmitir C2b. Apenas Alice pode
+transmitir HTD1b, já que Bob deu sua assinatura de HTD1b a Alice.
+
+Entretanto, se HTD1b não for transmitida (3 dias não se passaram) e Bob
+conhecer a pré-imagem $R$, então Bob poderá transmitir a transação de
+Execução do HTLC (HE1b) se conseguir produzir $R$. Essa transação é um
+RSMC. Consome a saída $multisig(P_{Alice6}, P_{Bob6})$ e requer divulgação
+de $R$ se Bob transmitir C2b. A saída dessa transação é um RSMC com
+$multisig(P_{Alice7}, P_{Bob7})$ com maturidade relativa de 1000 blocos, e
+$multisig(P_{Alice8}, P_{Bob8})$ sem requisitos de maturidade de bloco.
+Apenas Bob pode transmitir HE1b, já que apenas Alice deu sua assinatura de
+HE1b a Bob.
+
+Após HE1b entrar na blockchain e 1000 confirmações de bloco ocorrerem,
+uma transação de Entrega Revogável de Execução do HTLC (HTLC Execution
+Revocable Delivery, HERD1b) pode ser transmitida por Bob, consumindo
+$multisig(P_{Alice7}, P_{Bob7})$. Apenas Bob pode transmitir HERD1b 1000
+blocos após HE1b ser transmitida, já que apenas Alice deu sua assinatura de
+HERD1b a Bob. Essa transação pode ser revogável quando outra transação
+substitui HERD1b usando $multisig(P_{Alice8}, P_{Bob8})$, que não tem
+requisitos de maturidade de bloco.
+
+\subsection{Encerramento Off-chain do HTLC}
+
+Depois que um HTLC é construído, encerrar um HTLC off-chain requer que ambas
+as partes concordem sobre o estado do canal. Se o destinatário puder provar
+conhecimento de $R$ à contraparte, o destinatário está provando que é capaz
+de fechar imediatamente o canal na blockchain do Bitcoin e receber os
+fundos. Nesse ponto, se ambas as partes desejarem manter o canal aberto,
+elas devem encerrar o HTLC off-chain e criar uma nova Transação de
+Compromisso refletindo o novo saldo.
+
+\begin{figure}[H]
+	%\vspace*{-2cm}
+	\makebox[\linewidth]{
+		\includegraphics[width=1.2\linewidth]{figures/htlc-newcommit.pdf}
+	}
+	\caption{Como Bob provou a Alice que conhece $R$ ao dizer-lhe $R$,
+		Alice está disposta a atualizar o saldo com uma nova
+		Transação de Compromisso. O pagamento será o mesmo, seja C2
+		ou C3 transmitida neste momento.
+	}
+\end{figure}
+
+De forma similar, se o destinatário não puder provar conhecimento de $R$
+divulgando $R$, ambas as partes devem concordar em encerrar o HTLC e criar
+uma nova Transação de Compromisso com o saldo do HTLC reembolsado ao
+remetente.
+
+Se as contrapartes não conseguirem chegar a um acordo ou se tornarem de
+outra forma não responsivas, elas devem fechar o canal transmitindo as
+transações necessárias do canal na blockchain do Bitcoin.
+
+Entretanto, se forem cooperativas, podem fazer isso primeiro gerando uma
+nova Transação de Compromisso com os novos saldos e, em seguida,
+invalidando o Compromisso anterior trocando transações de Remediação de
+Quebra (BR2a/BR2b). Adicionalmente, se estiverem encerrando um HTLC
+específico, também devem trocar algumas de suas próprias chaves privadas
+usadas nas transações do HTLC.
+
+Por exemplo, se Alice deseja encerrar o HTLC, ela divulgará $K_{Alice1}$ e
+$K_{Alice4}$ a Bob. Correspondentemente, se Bob deseja encerrar o HTLC,
+ele divulgará $K_{Bob6}$ e $K_{Bob8}$ a Alice. Após as chaves privadas
+serem divulgadas à contraparte, se Alice transmitir C2a, Bob poderá tomar
+todos os fundos do HTLC imediatamente. Se Bob transmitir C2b, Alice poderá
+tomar todos os fundos do HTLC imediatamente. Note que, quando um HTLC é
+encerrado, a Transação de Compromisso mais antiga também deve ser
+revogada.
+
+\begin{figure}[H]
+	\vspace*{-3cm}
+	\makebox[\linewidth]{
+		\includegraphics[width=1.3\linewidth]{figures/Diagram2.pdf}
+	}
+	\caption{Uma Transação de Compromisso totalmente revogada e um HTLC
+		encerrado. Se qualquer parte transmitir o Compromisso 2,
+		perderá todo seu dinheiro para a contraparte. Outros
+		compromissos (por exemplo, se o Compromisso 3 for o atual)
+		não são exibidos por brevidade.
+	}
+\end{figure}
+
+Como ambas as partes podem provar o estado atual uma à outra, elas podem
+chegar a um acordo sobre o saldo atual dentro do canal. Como podem
+transmitir o estado atual na blockchain, são capazes de chegar a um acordo
+sobre a liquidação líquida e o encerramento do HTLC com uma nova Transação
+de Compromisso.
+
+\subsection{Formação e Ordem de Fechamento do HTLC}
+
+Para criar um novo HTLC, o processo é o mesmo de criar uma nova Transação
+de Compromisso, exceto que as assinaturas do HTLC são trocadas antes das
+assinaturas da nova Transação de Compromisso.
+
+Para fechar um HTLC, o processo é o seguinte (de C2 para C3):
+
+\begin{enumerate}
+	\item Alice assina e envia sua assinatura para RD3b e C3b. Nesse
+		ponto Bob pode optar por transmitir C3b ou C2b (com o HTLC)
+		com o mesmo pagamento. Bob está disposto, após receber C3b,
+		a encerrar C2b.
+	\item Bob assina e envia sua assinatura para RD3a e C3a, bem como suas
+		chaves privadas usadas para o Compromisso 2 e o HTLC sendo
+		encerrado; ele envia a Alice $K_{BobRSMC2}$, $K_{Bob5}$ e
+		$K_{Bob8}$. Nesse ponto, Bob só deve transmitir C3b e não
+		deve transmitir C2b, pois perderá todo seu dinheiro se o
+		fizer. Bob revogou totalmente C2b e o HTLC. Alice está
+		disposta, após receber C3a, a encerrar C2b.
+	\item Alice assina e envia sua assinatura para RD3b e C3b, bem como
+		suas chaves privadas usadas para o Compromisso 2 e o HTLC
+		sendo encerrado; ela envia a Bob $K_{AliceRSMC2}$, $K_{Bob1}$
+		e $K_{Bob4}$. Nesse ponto, nenhuma das partes deve transmitir
+		o Compromisso 2; se o fizerem, seus fundos irão para a
+		contraparte. O antigo Compromisso e o antigo HTLC estão agora
+		revogados e totalmente encerrados. Apenas o novo Compromisso
+		3 permanece, e ele não tem um HTLC.
+\end{enumerate}
+
+Quando o HTLC tiver sido fechado, os fundos são atualizados de modo que o
+saldo atual no canal seja aquele que existiria se o contrato HTLC tivesse
+sido concluído e transmitido na blockchain. Em vez disso, ambas as partes
+optam por fazer a novação off-chain e atualizar seus pagamentos dentro do
+canal.
+
+É absolutamente necessário que ambas as partes concluam a novação off-chain
+dentro de sua janela de tempo designada. Para o destinatário (Bob), ele
+deve conhecer $R$ e atualizar seu saldo com Alice dentro de 3 dias (ou
+qualquer tempo selecionado); caso contrário, Alice poderá resgatá-lo
+dentro de 3 dias. Para Alice, muito logo depois que seu timeout se tornar
+válido, ela deve novar ou transmitir a transação de Timeout do HTLC. Ela
+também deve novar ou transmitir a transação de Entrega Revogável de
+Timeout do HTLC assim que se tornar válida. Se a contraparte não estiver
+disposta a novar ou estiver protelando, então é necessário transmitir o
+estado atual do canal (incluindo as transações HTLC) à blockchain do
+Bitcoin.
+
+A flexibilidade de tempo dessas ofertas para novar depende das dependências
+contingentes do hashlock $R$. Se for estabelecido um contrato em que o HTLC
+deva ser resolvido dentro de 1 dia, então, se a transação expirar, Alice
+deve resolvê-la até o dia 4 (3 dias mais 1), caso contrário, Alice corre
+risco de perder fundos.
+
+\section{Armazenamento de Chaves}
+
+As chaves são geradas usando Carteiras Hierárquicas Determinísticas BIP
+0032\cite{bip32}. As chaves são pré-geradas por ambas as partes. As chaves
+são geradas em uma árvore de Merkle e estão muito profundamente na árvore.
+Por exemplo, Alice pré-gera um milhão de chaves, cada chave sendo um filho
+da chave anterior. Alice aloca quais chaves usar de acordo com algum modo
+determinístico. Por exemplo, ela começa com o filho mais profundo da árvore
+para gerar muitas subchaves para o dia 1. Essa chave é usada como uma chave
+mestre para todas as chaves geradas no dia 1. Ela entrega a Bob o endereço
+que deseja usar para a próxima transação, e divulga a chave privada a Bob
+quando ela for invalidada. Quando Alice divulga a Bob todas as chaves
+privadas derivadas da chave mestre do dia 1 e não deseja mais continuar
+usando essa chave mestre, ela pode divulgar a chave mestre do dia 1 a Bob.
+Nesse ponto, Bob não precisa armazenar todas as chaves derivadas da chave
+mestre do dia 1. Bob faz o mesmo para Alice e lhe entrega sua chave do
+dia 1.
+
+Quando todas as chaves privadas do Dia 2 tiverem sido trocadas, por
+exemplo, no dia 5, Alice divulga sua chave do Dia 2. Bob é capaz de gerar
+a chave do Dia 1 a partir da chave do Dia 2, já que a chave do Dia 1
+também é um filho da chave do Dia 2.
+
+Se uma contraparte transmitir a Transação de Compromisso errada, qual chave
+privada usar em uma transação para recuperar fundos pode ser obtida por
+força bruta ou, se ambas as partes concordarem, podem usar o número de id
+de sequência ao criar a transação para identificar quais conjuntos de
+chaves são usados.
+
+Isso permite que os participantes de um canal tenham estados de saída
+(transações) anteriores invalidados por ambas as partes sem usar muitos
+dados. Ao divulgar chaves privadas pré-organizadas em uma árvore de
+Merkle, é possível invalidar milhões de transações antigas com apenas
+alguns quilobytes de dados por canal. Canais centrais na Lightning Network
+podem conduzir bilhões de transações sem necessidade de custos
+significativos de armazenamento.
+
+\section{Taxas de Transação da Blockchain para Canais Bidirecionais}
+
+É possível para cada participante gerar versões diferentes de transações
+para atribuir culpa sobre quem transmitiu a transação na blockchain. Tendo
+conhecimento de quem transmitiu uma transação e a capacidade de atribuir
+culpa, um serviço de terceiros pode ser usado para reter taxas em um
+escrow multisig 2-de-3. Se alguém deseja transmitir a cadeia de transações
+em vez de concordar em fazer um Fechamento de Financiamento ou
+substituição por uma nova Transação de Compromisso, comunica-se com o
+terceiro e transmite a cadeia à blockchain. Se a contraparte recusar o
+aviso do terceiro para cooperar, a penalidade é recompensada à parte não
+cooperativa. Na maioria dos casos, os participantes podem ser indiferentes
+às taxas de transação no caso de uma contraparte não cooperativa.
+
+Deve-se escolher contrapartes no canal que sejam cooperativas, mas isso
+não é uma necessidade absoluta para o funcionamento do sistema. Note que
+isso não exige confiança no restante da rede e só é relevante para as
+relativamente pequenas taxas de transação. A parte menos confiável pode
+ser justamente a responsável pelas taxas de transação.
+
+As taxas da Lightning Network provavelmente serão significativamente
+menores do que as taxas de transação da blockchain. As taxas são
+amplamente derivadas do valor temporal do bloqueio de fundos para uma rota
+específica, bem como do pagamento pela chance de fechamento do canal na
+blockchain. Estas devem ser significativamente menores que as transações
+on-chain, já que muitas transações em um canal da Lightning Network podem
+ser liquidadas em uma única transação na blockchain. Com uma rede
+suficientemente robusta e interconectada, as taxas devem
+assintoticamente se aproximar de níveis desprezíveis para muitos tipos de
+transação. Com taxas baixas e transações rápidas, será possível construir
+micropagamentos escaláveis, mesmo entre sistemas de alta frequência, como
+aplicações de Internet das Coisas ou microcobrança por unidade.
+
+\section{Pagar ao Contrato (Pay to Contract)}
+
+É possível construir um contrato de ``Entrega contra Pagamento''
+criptograficamente comprovável, ou pay-to-contract\cite{paytocontract},
+como prova de pagamento. Essa prova pode ser estabelecida como o
+conhecimento da entrada R a partir de hash(R) como pagamento de um certo
+valor. Ao embutir uma cláusula no contrato entre comprador e vendedor
+declarando que conhecer R é prova de fundos enviados, o destinatário dos
+fundos não tem incentivo para divulgar R, a menos que tenha certeza de que
+receberá o pagamento. Quando os fundos forem eventualmente puxados do
+comprador pela sua contraparte no canal de micropagamento, R é divulgado
+como parte dessa retirada de fundos. Pode-se elaborar documentos legais
+em papel que especifiquem que o conhecimento ou a divulgação de R implica
+o cumprimento do pagamento. O remetente pode então arranjar um contrato
+criptograficamente assinado com conhecimento de entradas para hashes
+tratado como cumprimento do contrato em papel antes que o pagamento
+ocorra.
+
+\section{A Lightning Network do Bitcoin}
+
+Tendo um canal de micropagamento com contratos onerados por hashlocks e
+timelocks, é possível compensar transações em uma rede de pagamentos com
+múltiplos saltos usando uma série de timelocks decrescentes, sem câmaras
+de compensação centrais adicionais.
+
+Tradicionalmente, os mercados financeiros compensam transações
+transferindo a obrigação de entrega a um ponto central e liquidam
+transferindo a propriedade por meio desse hub central. Sistemas de
+transferência bancária e de fundos (como ACH e a rede de cartões Visa) ou
+câmaras de compensação de ações (como a DTCC) operam dessa forma.
+
+Como o Bitcoin permite dinheiro programático, é possível criar transações
+sem contatar uma câmara de compensação central. As transações podem ser
+executadas off-chain, sem terceiros que coletam todos os fundos antes de
+desembolsá-los \textemdash apenas transações com contrapartes de canal não
+cooperativas tornam-se automaticamente julgadas na blockchain.
+
+A obrigação de entregar fundos a um destinatário final é obtida por meio
+de um processo de delegação encadeada. Cada participante ao longo do
+caminho assume a obrigação de entregar a um destinatário específico. Cada
+participante passa essa obrigação ao próximo participante no caminho. A
+obrigação de cada participante subsequente no caminho, definida em seus
+respectivos HTLCs, tem tempo menor para conclusão em comparação com o
+participante anterior. Dessa forma, cada participante tem certeza de que
+poderá reivindicar os fundos quando a obrigação for enviada ao longo do
+caminho.
+
+A Linguagem de Scripts de Transação do Bitcoin, uma forma do que alguns
+chamam de implementação de ``Contratos Inteligentes''\cite{smartcontracts},
+permite sistemas sem câmaras de compensação custodiais confiáveis ou
+serviços de escrow.
+
+\subsection{Timelocks Decrescentes}
+
+Suponha que Alice deseje enviar 0,001 BTC a Dave. Ela localiza uma rota por
+Bob e Carol. O caminho de transferência seria Alice para Bob para Carol
+para Dave.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/network-fig0.pdf}
+	}
+	\caption{Pagamento pela Lightning Network usando HTLCs.
+	}
+\end{figure}
+
+Quando Alice envia pagamento a Dave por Bob e Carol, ela solicita a Dave
+hash(R) para usar nesse pagamento. Alice então conta a quantidade de
+saltos até o destinatário e usa isso como expiração do HTLC. Neste caso,
+ela define a expiração do HTLC em 3 dias. Bob então cria um HTLC com Carol
+com expiração de 2 dias, e Carol faz o mesmo com Dave com expiração de 1
+dia. Dave agora está livre para divulgar R a Carol, e ambas as partes
+provavelmente concordarão em liquidação imediata via novação com uma
+Transação de Compromisso substitutiva. Isso então ocorre passo a passo de
+volta a Alice. Note que isso ocorre off-chain e nada é transmitido à
+blockchain quando todas as partes são cooperativas.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/network-fig1.pdf}
+	}
+	\caption{Liquidação do HTLC, os fundos de Alice são enviados a Dave.
+	}
+\end{figure}
+
+Timelocks decrescentes são usados para que todas as partes ao longo do
+caminho saibam que a divulgação de R permitirá à parte que divulga puxar
+os fundos, já que, no pior caso, estarão puxando fundos após a data até a
+qual devem receber R. Se Dave não produzir R dentro de 1 dia para Carol,
+então Carol poderá fechar o HTLC. Se Dave transmitir R após 1 dia, ele não
+poderá puxar fundos de Carol. A responsabilidade de Carol com Bob ocorre
+no dia 2, então Carol nunca será responsável pelo pagamento a Dave sem ser
+capaz de puxar fundos de Bob, contanto que atualize sua transação com Dave
+via transmissão à blockchain ou via novação.
+
+Caso R seja divulgado aos participantes na metade da expiração ao longo do
+caminho (por exemplo, dia 2), é possível que algumas partes ao longo do
+caminho sejam enriquecidas. O remetente poderá conhecer R; assim, devido
+ao Pay to Contract, o pagamento terá sido cumprido mesmo que o
+destinatário não tenha recebido os fundos. Portanto, o destinatário nunca
+deve divulgar R a menos que tenha recebido um HTLC de sua contraparte de
+canal; eles têm garantia de receber pagamento de uma de suas contrapartes
+de canal mediante a divulgação da pré-imagem.
+
+Caso uma parte desconecte completamente, a contraparte será responsável
+por transmitir o estado atual da Transação de Compromisso do canal à
+blockchain. Apenas o estado do canal com falha (não responsivo) é fechado
+na blockchain; todos os outros canais devem continuar a atualizar suas
+Transações de Compromisso via novação dentro do canal. Portanto, o risco
+de contraparte para taxas de transação é exposto apenas às contrapartes
+diretas do canal. Se um nó ao longo do caminho decide se tornar não
+responsivo, os participantes não diretamente conectados a esse nó sofrem
+apenas uma redução do valor temporal de seus fundos por não realizarem a
+liquidação antecipada antes do fechamento do HTLC.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/network-fig2.pdf}
+	}
+	\caption{Apenas os canais não responsivos são transmitidos na
+		blockchain; todos os outros são liquidados off-chain via
+		novação.
+	}
+\end{figure}
+
+\subsection{Valor do Pagamento}
+
+É preferível usar um pagamento pequeno por HTLC. Não se deve usar um
+pagamento extremamente alto, caso o pagamento não seja totalmente
+roteado até seu destino. Se o pagamento não chegar ao destino e um dos
+participantes ao longo do caminho não for cooperativo, é possível que o
+remetente precise esperar até a expiração antes de receber um reembolso.
+A entrega pode ter perdas, similar a pacotes na internet, mas a rede não
+pode roubar fundos em trânsito. Como as transações não atingem a
+blockchain com contrapartes de canal cooperativas, recomenda-se usar
+pagamentos tão pequenos quanto possível. Existe um trade-off entre
+bloquear taxas de transação a cada salto e o desejo de usar um valor de
+transação tão pequeno quanto possível (este último pode incorrer em taxas
+totais maiores). Transferências menores com mais intermediários implicam
+em um percentual maior pago como taxas da Lightning Network aos
+intermediários.
+
+\subsection{Falha de Compensação e Reroteamento}
+
+Se uma transação falhar em chegar ao seu destino final, o destinatário deve
+enviar um pagamento igual ao remetente com o mesmo hash, mas sem divulgar
+R. Isso compensará a divulgação do hash para o remetente, mas pode
+não fazê-lo para o destinatário. O destinatário, que gerou o hash, deve
+descartar R e nunca transmiti-lo. Se um canal ao longo do caminho não puder
+ser contatado, então os canais podem optar por esperar até que o caminho
+expire, situação em que todos os participantes provavelmente fecharão o
+HTLC como não liquidado, sem qualquer pagamento, com uma nova Transação
+de Compromisso.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/network-fig3.pdf}
+	}
+	\caption{Dave cria um caminho de volta a Alice depois que Alice falha
+		em enviar fundos a Dave, porque Carol não é cooperativa. A
+		entrada R de hash(R) nunca é transmitida por Dave, porque
+		Carol não completou suas ações. Se R fosse transmitido,
+		Alice ficaria em equilíbrio (break-even). Dave, que controla
+		R, nunca deve transmitir R, porque pode não receber fundos
+		de Carol; ele deve deixar os contratos expirarem. Alice e
+		Bob também têm a opção de compensar e fechar o contrato
+		antecipadamente, neste diagrama.
+	}
+\end{figure}
+
+Se a rota de reembolso for a mesma que a rota de pagamento, e não houver
+contratos meio-assinados em que uma parte possa roubar fundos, é possível
+cancelar a transação totalmente substituindo-a por uma nova Transação de
+Compromisso, começando pelo nó mais recente que participou do HTLC.
+
+Também é possível liberar um canal criando uma rota alternativa em que o
+pagamento ocorrerá na direção oposta (zerando o saldo) e/ou
+criando um caminho alternativo inteiramente para o pagamento. Isso criará
+um valor temporal do dinheiro para divulgar entradas de hashes na Lightning
+Network. Os participantes podem se especializar em alta conectividade
+entre nós e oferecer-se para descarregar hashlocks de outros nós em troca
+de uma taxa. Esses participantes concordarão com pagamentos que fazem net
+out para zero (mais taxas), mas estão emprestando bitcoins por um período
+de tempo definido. Provavelmente, essas entidades com baixa demanda por
+recursos de canal serão usuários finais já conectados a múltiplos nós bem
+conectados. Quando um usuário final se conecta a um nó, o nó pode pedir ao
+cliente para bloquear seus fundos por vários dias em outro canal que o
+cliente tenha estabelecido em troca de uma taxa. Isso pode ser obtido
+fazendo com que as novas transações exijam um novo hash(Y) a partir da
+entrada Y, além do hash existente, que pode ser gerado por qualquer
+participante, mas deve divulgar Y apenas após estabelecer um círculo
+completo. O novo participante tem a mesma responsabilidade e os mesmos
+timelocks do antigo participante substituído. Também é possível que um
+novo participante substitua múltiplos saltos.
+
+\begin{figure}[H]
+	\makebox[\linewidth]{
+		\includegraphics[width=1\linewidth]{figures/network-fig4.pdf}
+	}
+	\caption{Erin está conectada tanto a Bob quanto a Dave. Se Bob deseja
+		liberar seu canal com Carol, já que esse canal está ativo e
+		muito lucrativo, Bob pode descarregar o pagamento para Dave
+		via Erin. Como Erin tem bitcoin extra disponível, ela poderá
+		coletar uma taxa por descarregar o canal entre Bob e Carol,
+		bem como entre Carol e Dave. Os canais entre Bob e Carol,
+		assim como entre Carol e Dave, são desfeitos e não têm mais
+		o HTLC, nem ocorreu pagamento naquele caminho. O pagamento
+		ocorrerá no caminho envolvendo Erin. Isso é alcançado
+		criando um novo pagamento de Dave para Carol para Bob
+		contingente à construção de um HTLC por Erin. Os pagamentos
+		em linhas tracejadas (vermelho) são zerados e liquidados
+		via um novo Contrato de Compromisso.
+	}
+\end{figure}
+
+\subsection{Roteamento de Pagamentos}
+
+É teoricamente possível construir um mapa de rotas implicitamente a partir
+da observação de multisigs 2-de-2 na blockchain para construir uma tabela
+de roteamento. Note, contudo, que isso não é viável com saídas de
+transação pay-to-script-hash, que podem ser resolvidas fora de banda do
+protocolo Bitcoin via um serviço de roteamento terceirizado. A construção
+de uma tabela de roteamento se tornará necessária para grandes operadores
+(por exemplo, BGP, Cjdns). Eventualmente, com otimizações, a rede se
+parecerá muito com a rede bancária correspondente, ou com os ISPs Tier-1.
+De forma similar à maneira como pacotes ainda chegam ao destino em uma
+conexão de rede doméstica, nem todos os participantes precisam ter uma
+tabela de roteamento completa. As rotas centrais Tier-1 podem estar
+online o tempo todo \textemdash enquanto nós nas bordas, como usuários
+comuns, estariam conectados de forma intermitente.
+
+A descoberta de nós pode ocorrer ao longo das bordas pré-selecionando e
+oferecendo rotas parciais para nós bem conhecidos.
+
+\subsection{Taxas}
+
+As taxas da Lightning Network, que diferem das taxas da blockchain, são
+pagas diretamente entre participantes dentro do canal. As taxas pagam pelo
+valor temporal do dinheiro consumindo o canal por um período máximo
+determinado, e pelo risco de contraparte de não comunicação.
+
+O risco de contraparte para taxas existe apenas com a contraparte direta
+do canal. Se um nó a dois saltos de distância decide se desconectar e sua
+transação é transmitida na blockchain, as contrapartes diretas não devem
+transmitir na blockchain, mas continuar a atualizar via novação com uma
+nova Transação de Compromisso. Veja a entrada Timelocks Decrescentes na
+seção HTLC para mais informações sobre risco de contraparte.
+
+O valor temporal das taxas paga pelo consumo de tempo (por exemplo, 3
+dias) e é conceitualmente equivalente a uma taxa de leasing de ouro sem
+risco custodial; é o valor temporal por consumir o acesso ao dinheiro por
+uma duração muito curta. Como certos caminhos podem se tornar muito
+lucrativos em uma direção, é possível que as taxas sejam negativas para
+incentivar que o canal esteja disponível para esses caminhos lucrativos.
+
+\section{Riscos}
+
+Os principais riscos relacionam-se à expiração dos timelocks. Adicionalmente,
+para que nós centrais e possivelmente alguns comerciantes possam rotear
+fundos, as chaves precisam ser mantidas online para menor latência. No
+entanto, usuários finais e nós podem manter suas chaves privadas isoladas em
+carteira fria.
+
+\subsection{Timelocks Inadequados}
+
+Os participantes devem escolher timelocks com tempo suficiente. Se for dado
+tempo insuficiente, é possível que transações com timelock que se acreditava
+serem inválidas se tornem válidas, permitindo o roubo de moedas pela
+contraparte. Existe um trade-off entre timelocks mais longos e o valor
+temporal do dinheiro. Ao escrever software de carteira e de aplicações para
+a Lightning Network, é necessário garantir que tempo suficiente seja dado e
+que os usuários possam ter suas transações inseridas na blockchain ao
+interagir com contrapartes não cooperativas ou maliciosas.
+
+\subsection{Spam de Expiração Forçada}
+
+A expiração forçada de muitas transações pode ser o maior risco sistêmico ao
+usar a Lightning Network. Se um participante malicioso cria muitos canais e
+força que todos expirem ao mesmo tempo, isso pode sobrecarregar a capacidade
+de dados dos blocos, forçando expiração e transmissão à blockchain. O
+resultado seria spam em massa na rede Bitcoin. O spam pode atrasar
+transações ao ponto em que outras transações com locktime se tornem
+válidas.
+
+Isso pode ser mitigado permitindo uma substituição de transação em todas as
+transações pendentes. Anti-spam pode ser usado permitindo apenas uma
+substituição de transação de número de sequência maior pelo inverso de um
+número par ou ímpar. Por exemplo, se um número de sequência ímpar foi
+transmitido, permita uma substituição para um número par maior apenas uma
+vez. As transações usariam o número de sequência de maneira ordenada para
+substituir outras transações. Isso mitiga o risco assumindo mineradores
+honestos. Este ataque é de risco extremamente alto, pois a transmissão
+incorreta de Transações de Compromisso acarreta penalidade total de todos
+os fundos no canal.
+
+Adicionalmente, alguém pode tentar roubar transações HTLC forçando uma
+transação de timeout a passar quando não deveria. Isso pode ser facilmente
+mitigado fazendo com que cada transferência dentro do canal seja menor que
+o total de taxas de transação utilizadas. Como as transações são
+extremamente baratas e não atingem a blockchain com contrapartes de canal
+cooperativas, grandes transferências de valor podem ser divididas em muitas
+transferências pequenas. Essa tentativa só pode funcionar se os blocos
+estiverem completamente cheios por um longo tempo. Embora seja possível
+mitigá-la usando uma duração maior de timeout do HTLC, tamanhos de bloco
+variáveis podem se tornar comuns, o que pode exigir mitigações.
+
+Se esse tipo de transação se tornar a forma dominante de transações
+incluídas na blockchain, pode se tornar necessário aumentar o tamanho do
+bloco e executar uma estrutura de tamanho de bloco variável e flags de
+timestop, conforme descrito na seção abaixo. Isso pode criar penalidades e
+desincentivos suficientes para tornar a operação altamente não lucrativa e
+malsucedida para os atacantes, já que os atacantes perdem todos os seus
+fundos ao transmitir a transação errada, ao ponto em que isso jamais
+ocorrerá.
+
+\subsection{Roubo de Moedas via Quebra Criptográfica}
+
+Como as partes precisam estar online e usar chaves privadas para assinar,
+existe a possibilidade de que, se o computador onde as chaves privadas são
+armazenadas for comprometido, as moedas serão roubadas pelo atacante.
+Embora possa haver métodos para mitigar a ameaça para o remetente e o
+destinatário, os nós intermediários devem estar online e provavelmente
+processarão a transação automaticamente. Por essa razão, os nós
+intermediários estarão em risco e não devem manter quantias substanciais de
+dinheiro nessa ``carteira quente''. Nós intermediários com melhor segurança
+provavelmente conseguirão superar outros no longo prazo e ser capazes de
+conduzir maior volume de transações devido a taxas mais baixas.
+Historicamente, um dos maiores componentes de taxas e juros no sistema
+financeiro decorre de várias formas de risco de contraparte \textemdash no
+Bitcoin é possível que o maior componente nas taxas seja derivado de prêmios
+de risco de segurança.
+
+Uma Transação de Financiamento pode ter múltiplas saídas com múltiplas
+Transações de Compromisso, com a chave da Transação de Financiamento e
+algumas chaves das Transações de Compromisso armazenadas offline. É
+possível criar um equivalente a uma ``Conta Corrente'' e uma ``Conta
+Poupança'' movendo fundos entre saídas de uma Transação de Financiamento,
+com a ``Conta Poupança'' armazenada offline e exigindo assinaturas
+adicionais de serviços de segurança.
+
+\subsection{Perda de Dados}
+
+Quando uma parte perde dados, é possível que a contraparte roube fundos.
+Isso pode ser mitigado tendo um serviço de armazenamento de dados de
+terceiros, no qual os dados criptografados são enviados a esse serviço
+terceirizado que a parte não consegue descriptografar. Adicionalmente,
+deve-se escolher contrapartes de canal que sejam responsáveis e dispostas a
+fornecer o estado atual, com alguns testes periódicos de honestidade.
+
+\subsection{Esquecer de Transmitir a Transação no Tempo Certo}
+
+Se alguém não transmitir uma transação no momento correto, a contraparte
+pode roubar fundos. Isso pode ser mitigado tendo um terceiro designado
+para enviar fundos. Uma taxa de saída pode ser adicionada para criar um
+incentivo para que esse terceiro monitore a rede. Além disso, isso também
+pode ser mitigado implementando OP\_CHECKSEQUENCEVERIFY.
+
+\subsection{Incapacidade de Realizar Soft-Forks Necessários}
+
+Mudanças são necessárias no Bitcoin, como o soft-fork de maleabilidade.
+Adicionalmente, se esse sistema se tornar popular, será necessário para o
+sistema transacionar com segurança com muitos usuários, e algum tipo de
+estrutura como um timestop por altura de bloco será desejável. Esse
+sistema pressupõe tais mudanças para permitir que a Lightning Network
+exista totalmente, bem como soft-forks que assegurem que a segurança seja
+robusta contra atacantes. Embora o sistema possa continuar a operar
+apenas com alguns soft-forks de timelock e maleabilidade, haverá
+soft-forks necessários relativos a riscos sistêmicos. Sem a devida visão
+da comunidade, a incapacidade de estabelecer um timestop ou função
+similar permitirá que ataques sistêmicos ocorram e podem não ser
+reconhecidos como imperativos até que um ataque realmente aconteça.
+
+\subsection{Ataques de Mineradores em Conluio}
+
+Mineradores podem optar por recusar incluir transações específicas (por
+exemplo, transações de Remediação de Quebra) para auxiliar no roubo de
+moedas por timeout. Um atacante pode pagar a todos os mineradores para
+recusar a inclusão de certas transações em seu mempool e em seus blocos. Os
+mineradores podem identificar seus próprios blocos na tentativa de provar
+seu comportamento ao atacante pagador.
+
+Isso pode ser mitigado incentivando os mineradores a evitar identificar
+seus próprios blocos. Além disso, deve-se esperar que esse tipo de
+pagamento a mineradores seja uma atividade maliciosa e que o contrato seja
+inexequível. Os mineradores podem então aceitar o pagamento e minerar
+furtivamente um bloco sem identificá-lo ao atacante. Como o atacante está
+pagando por isso, ele rapidamente ficará sem dinheiro ao perder a taxa
+para o minerador, bem como perder todo o seu dinheiro no canal. Esse
+ataque é improvável e razoavelmente pouco atraente, pois é muito difícil e
+requer um alto grau de conluio com risco extremo.
+
+O modelo de risco desse ataque ocorrendo é similar ao de mineradores
+conluiando para fazer ataques de reorg: extremamente improvável com muitos
+mineradores não coordenados.
+
+\section{Aumentos do Tamanho do Bloco e Consenso}
+
+Se presumirmos que existe uma rede de pagamentos descentralizada e que um
+usuário fará 3 transações na blockchain por ano em média, o Bitcoin poderá
+suportar mais de 35 milhões de usuários com blocos de 1MB em circunstâncias
+ideais (assumindo 2000 transações/MB, ou 500 bytes/Tx). Isso é bastante
+limitado, e um aumento do tamanho do bloco pode ser necessário para
+suportar todas as pessoas no mundo usando Bitcoin. Um simples aumento do
+tamanho do bloco seria um hard-fork, ou seja, todos os nós precisariam
+atualizar suas carteiras se desejassem participar da rede com os blocos
+maiores.
+
+Embora possa parecer que esse sistema mitigará os aumentos de tamanho de
+bloco no curto prazo, se ele alcançar escala global, exigirá um aumento de
+tamanho de bloco no longo prazo. Criar uma ferramenta crível para ajudar a
+evitar spam na blockchain projetado para incentivar a expiração das
+transações se torna imperativo.
+
+Para mitigar vulnerabilidades de spam por timelock, as regras de consenso
+para não-mineradores e mineradores também podem diferir, se as regras de
+consenso dos mineradores forem mais restritivas. Os não-mineradores podem
+aceitar blocos maiores que 1MB, enquanto os mineradores podem ter limites
+diferentes de soft-cap nos tamanhos de bloco. Se um tamanho de bloco
+estiver acima desse limite, então é visto como um bloco inválido por outros
+mineradores, mas não por não-mineradores. Os mineradores apenas construirão
+a cadeia sobre blocos que sejam válidos de acordo com o soft-cap acordado.
+Isso permite que os mineradores concordem em elevar o limite de tamanho de
+bloco sem exigir hard-forks frequentes dos clientes, contanto que o valor
+elevado pelos mineradores não ultrapasse o limite rígido dos clientes. Isso
+mitiga o risco de expiração em massa de transações de uma vez. Todas as
+transações que não forem resgatadas via Liquidação por Exercício (ES) podem
+ter uma taxa muito alta atrelada, e os mineradores podem usar uma regra de
+consenso pela qual essas transações são isentas do soft-cap, tornando muito
+provável que as transações corretas entrem na blockchain.
+
+Quando as transações são vistas como circuitos e contratos em vez de
+pacotes de transação, os riscos de consenso podem ser medidos pela
+quantidade de tempo disponível para cobrir o conjunto de UTXO controlado
+por partes hostis. Na prática, o limite superior do tamanho do UTXO é
+determinado pelas taxas de transação e pelo valor mínimo padrão de saída
+de transação. Se os mineradores do Bitcoin tiverem um mempool
+determinístico que prioriza transações respeitando uma ordem temporal
+local ``fraca'' das transações, pode se tornar extremamente não lucrativo e
+improvável que um ataque seja bem-sucedido. Qualquer ataque de spam
+temporal de transação transmitindo a Transação de Compromisso incorreta é
+de risco extremamente alto para o atacante, pois requer uma imensa
+quantidade de bitcoin e todos os fundos comprometidos nessas transações
+serão perdidos se o atacante falhar.
+
+\section{Casos de Uso}
+
+Além de ajudar o Bitcoin a escalar, há muitos usos para as transações na
+Lightning Network:
+\begin{itemize}
+	\item Transações Instantâneas. Usando a Lightning, as transações Bitcoin
+		passam a ser quase instantâneas com qualquer parte. É possível
+		pagar por uma xícara de café com pagamento direto e
+		irrevogável em milissegundos a segundos.
+
+	\item Arbitragem em Exchanges. Atualmente existe um incentivo para
+		manter fundos em exchanges para estar pronto para grandes
+		movimentos de mercado devido aos tempos de confirmação de
+		3-6 blocos. É possível que a exchange participe dessa rede e
+		que os clientes movam seus fundos para dentro e para fora da
+		exchange para ordens quase instantaneamente. Se a exchange
+		não tiver grande profundidade de mercado e se comprometer a
+		permitir apenas ordens limite próximas ao topo do livro de
+		ordens, então o risco de roubo de moedas se torna muito
+		menor. A exchange, na prática, não teria mais necessidade de
+		uma carteira fria. Isso pode reduzir
+		substancialmente os roubos e a necessidade de custodiantes
+		terceiros confiáveis.
+
+	\item Micropagamentos. As taxas da blockchain do Bitcoin são altas
+		demais para aceitar micropagamentos, especialmente com os
+		menores valores. Com este sistema, micropagamentos quase
+		instantâneos usando Bitcoin, sem um custodiante terceiro,
+		seriam possíveis. Isso permitiria, por exemplo, pagar por
+		megabyte por serviço de internet ou por artigo para ler um
+		jornal.
+
+	\item Contratos Financeiros Inteligentes e Escrow. Contratos financeiros
+		são especialmente sensíveis ao tempo e têm maiores demandas
+		por computação na blockchain. Ao mover a esmagadora maioria
+		das transações sem confiança para fora da cadeia, é possível
+		ter termos contratuais transacionais altamente complexos sem
+		jamais atingir a blockchain.
+
+	\item Pagamentos Cross-Chain. Contanto que haja funções de hash
+		similares entre cadeias, é possível que as transações sejam
+		roteadas em múltiplas cadeias com regras de consenso
+		diferentes. O remetente não precisa confiar nem conhecer as
+		outras cadeias \textemdash nem mesmo a cadeia de destino. De
+		forma similar, o destinatário não precisa saber nada sobre a
+		cadeia do remetente ou qualquer outra cadeia. Tudo o que
+		interessa ao destinatário é um pagamento condicionado ao
+		conhecimento de um segredo na sua cadeia. O pagamento pode
+		ser roteado por participantes em ambas as cadeias no salto.
+		Por exemplo, Alice está no Bitcoin, Bob está tanto no
+		Bitcoin quanto na X-Coin, e Carol está em uma hipotética
+		X-Coin; Alice pode pagar a Carol sem entender as regras de
+		consenso da X-Coin.
+
+\end{itemize}
+
+\section{Conclusão}
+
+Criar uma rede de canais de micropagamento permite a escalabilidade do
+Bitcoin, micropagamentos até o nível do satoshi e transações quase
+instantâneas. Esses canais representam transações Bitcoin reais, usando os
+opcodes de scripting do Bitcoin para permitir a transferência de fundos
+sem risco de roubo pela contraparte, especialmente com mitigações de
+risco de mineradores de longo prazo.
+
+Se todas as transações usando Bitcoin estivessem na blockchain, para
+permitir que 7 bilhões de pessoas fizessem duas transações por dia, seriam
+necessários, na melhor das hipóteses, blocos de 24GB a cada dez minutos
+(assumindo 250 bytes por transação e 144 blocos por dia). Conduzir todas
+as transações de pagamento globais na blockchain hoje implica que os
+mineradores precisariam fazer uma quantidade incrível de computação,
+limitando severamente a escalabilidade do Bitcoin e os nós completos a
+alguns processadores centralizados.
+
+Se todas as transações usando Bitcoin fossem conduzidas dentro de uma rede
+de canais de micropagamento, para permitir que 7 bilhões de pessoas
+fizessem dois canais por ano com transações ilimitadas dentro do canal,
+seriam necessários blocos de 133 MB (assumindo 500 bytes por transação e
+52.560 blocos por ano). Computadores desktop da geração atual poderão
+executar um nó completo com blocos antigos podados em 2TB de armazenamento.
+
+Com uma rede de canais de micropagamento instantaneamente confirmados
+cujos pagamentos são onerados por timelocks e saídas com hashlocks, o
+Bitcoin pode escalar para bilhões de usuários sem risco custodial ou
+centralização da blockchain quando as transações são conduzidas com
+segurança off-chain usando o scripting do Bitcoin, com a aplicação contra
+a não cooperação feita pela transmissão de transações multiassinaturas
+assinadas na blockchain.
+
+\section{Agradecimentos}
+
+Os canais de micropagamento foram desenvolvidos por muitas partes, e
+foram discutidos no bitcointalk, na lista de e-mails do Bitcoin e no IRC.
+A quantidade de contribuidores para essa ideia é imensa e muita reflexão
+foi dedicada a essa capacidade. Foi feito um esforço para citar e
+encontrar ideias similares, mas isso está absolutamente longe de estar
+completo. Em particular, há muitas similaridades com uma proposta de
+Alex Akselrod ao usar hashlocking como método de onerar um canal de
+pagamento em estrela (hub-and-spoke).
+
+Agradecimentos a Peter Todd por corrigir um erro significativo no script
+do HTLC, bem como por otimizar o tamanho dos opcodes.
+
+Agradecimentos a Elizabeth Stark pela revisão e correções.
+
+Agradecimentos a Rusty Russell pela revisão deste documento e sugestões
+para tornar o conceito mais digerível, bem como pelo trabalho em uma
+construção que pode fornecer uma solução paliativa antes de uma correção
+de maleabilidade de longo prazo (a ser descrita em uma versão futura).
+
+\begin{appendices}
+\section{Resolvendo a Maleabilidade}
+
+Para criar esses contratos no Bitcoin sem um serviço de terceiros
+confiável, o Bitcoin deve corrigir o problema de maleabilidade de
+transações. Se as transações puderem ser mutadas, então as assinaturas
+podem ser invalidadas, invalidando assim transações de reembolso e títulos
+de compromisso. Isso cria uma oportunidade para atores hostis usarem-na
+como uma oportunidade para uma tática de negociação para roubar moedas,
+em essência, um cenário de refém.
+
+Para mitigar a maleabilidade, é necessário fazer uma mudança via soft-fork
+no Bitcoin. Clientes mais antigos ainda funcionarão, mas os mineradores
+precisariam atualizar. O Bitcoin já teve diversos soft-forks no passado,
+incluindo o pay-to-script-hash (P2SH).
+
+Para mitigar a maleabilidade, é necessário alterar quais conteúdos são
+assinados pelos participantes. Isso é alcançado criando novos tipos de
+sighash. Para acomodar esse novo comportamento, um novo tipo de P2SH ou
+um novo OP\_CHECKSIG é necessário para torná-lo um soft-fork em vez de um
+hard-fork.
+
+Se um novo P2SH fosse definido, ele usaria um script de saída diferente,
+como:
+\\\\
+\noindent\texttt{OP\_DUP OP\_HASH160 \textless hash de 20 bytes\textgreater
+~OP\_EQUALVERIFY}
+\\\\
+
+Como isso sempre resolverá para verdadeiro contanto que um redeemScript
+válido seja fornecido, todos os clientes existentes retornarão verdadeiro.
+Isso permite que o sistema de scripting construa novas regras, incluindo
+novas regras de validação de assinatura. Pelo menos um novo sighash
+precisaria existir.
+
+SIGHASH\_NOINPUT não assinaria nenhum ID de transação de entrada nem
+assinaria o índice. Ao usar SIGHASH\_NOINPUT, pode-se garantir que a
+contraparte não invalide árvores inteiras de transações encadeadas de
+potenciais estados de contrato previamente acordados, via mutação do ID
+da transação. Com os novos flags de sighash, é possível gastar a partir de
+uma transação pai mesmo que o ID da transação tenha mudado, contanto que o
+script avalie como verdadeiro (ou seja, uma assinatura válida).
+
+SIGHASH\_NOINPUT implica em risco significativo com a reutilização de
+endereços, pois pode funcionar com qualquer transação em que o sigScript
+retorne como válido, de modo que várias transações com as mesmas saídas são
+resgatáveis (contanto que os valores de saída sejam menores).
+
+Além disso, e tão importante quanto, SIGHASH\_NOINPUT permite que os
+participantes assinem gastos de transações sem conhecer as assinaturas da
+transação sendo gasta. Resolvendo a maleabilidade da maneira acima, duas
+partes podem construir contratos e gastar transações sem que qualquer das
+partes tenha a capacidade de transmitir essa transação original na
+blockchain até que ambas concordem. Com o novo tipo de sighash, os
+participantes podem construir possíveis estados de contrato e possíveis
+condições de pagamento e concordar com todos os termos, antes que o
+contrato possa ser pago, transmitido e executado, sem a necessidade de um
+terceiro confiável.
+
+Sem SIGHASH\_NOINPUT, não é possível construir saídas antes que a
+transação possa ser financiada. É como se não se pudesse fazer acordos sem
+comprometer fundos sem saber a que se está comprometendo.
+SIGHASH\_NOINPUT permite construir o resgate de transações que ainda não
+existem. Em outras palavras, é possível formar acordos antes de financiar
+a transação, se a saída for uma transação multiassinatura 2-de-2.
+
+Para usar SIGHASH\_NOINPUT, constrói-se uma Transação de Financiamento e
+não a assina ainda. Essa Transação de Financiamento não precisa usar
+SIGHASH\_NOINPUT se estiver gastando a partir de uma transação que já
+entrou na blockchain. Para gastar a partir de uma Transação de
+Financiamento com uma saída multiassinatura 2-de-2 que ainda não foi
+assinada e transmitida, no entanto, é necessário usar SIGHASH\_NOINPUT.
+
+Uma solução paliativa adicional usando OP\_CHECKSEQUENCEVERIFY ou um uso
+menos ideal de OP\_CHECKLOCKTIMEVERIFY será descrita em um artigo futuro
+de Rusty Russell. Uma versão atualizada deste artigo também incluirá essas
+construções.
+
+\end{appendices}
+
+%bibliografia
+\bibliographystyle{unsrt}
+\bibliography{paper}
+
+\end{document}
+
+%TODO Remover "Fidelity Bond" ("caução de fidelidade") e substituir por um nome
+%que se refira a ele como um contrato, em vez disso.
+
