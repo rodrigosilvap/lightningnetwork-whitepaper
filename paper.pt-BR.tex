@@ -4,6 +4,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[brazilian]{babel}
 \usepackage{graphicx}
+\graphicspath{{figures-pt-BR/}{figures/}}
 %\usepackage{fullpage}
 \usepackage{pdfpages}
 \usepackage{color}
@@ -36,7 +37,7 @@
 		\small\href{mailto:rx@awsomnet.org}
 			{\nolinkurl{rx@awsomnet.org}}
 	}
-\date{\today\\\small RASCUNHO Versão 0.5.9.2 \\ \small Tradução para o Português (Brasil)}
+\date{14 de Janeiro de 2016\\\small RASCUNHO Versão 0.5.9.2 \\ \small Tradução para o Português (Brasil)}
 \begin{document}
 
 \maketitle
@@ -390,7 +391,7 @@ de Compromisso inicial.
 %Diagrama - Transação de financiamento defeituosa
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/funding-broken1.pdf}
+		\includegraphics[width=1\linewidth]{funding-broken1.pdf}
 	}
 	\caption{Este diagrama descreve uma transação de financiamento
 		ingênua e defeituosa. A Transação de Financiamento (F),
@@ -432,7 +433,7 @@ assinaturas para que qualquer saldo possa ser transmitido.
 %Diagrama - Transação de financiamento defeituosa
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/funding-broken2.pdf}
+		\includegraphics[width=1\linewidth]{funding-broken2.pdf}
 	}
 	\caption{Qualquer uma das Transações de Compromisso pode ser
 		transmitida a qualquer momento por qualquer parte; apenas uma
@@ -493,7 +494,7 @@ exige tanto a assinatura de Alice quanto a de Bob.
 %Diagrama - Transação de financiamento defeituosa
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/funding-broken3.pdf}
+		\includegraphics[width=1\linewidth]{funding-broken3.pdf}
 	}
 	\caption{Caixas roxas são transações não transmitidas que apenas Alice
 		pode transmitir. Caixas azuis são transações não transmitidas
@@ -710,7 +711,7 @@ impor penalidades sem confiar na contraparte.
 %Diagrama - Transação de Financiamento e todos os gastos do Compromisso 1
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/funding-full.pdf}
+		\includegraphics[width=1\linewidth]{funding-full.pdf}
 	}
 	\caption{A Transação de Financiamento F, designada em verde, é
 		transmitida na blockchain após todas as outras transações
@@ -785,7 +786,7 @@ de Compromisso correta (C1b).
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/funding-full-bob-spend.pdf}
+		\includegraphics[width=1\linewidth]{funding-full-bob-spend.pdf}
 	}
 	\caption{Quando Bob transmite C1b, Alice pode resgatar sua parte
 		imediatamente. Bob deve esperar 1000 confirmações. Quando o
@@ -806,7 +807,7 @@ a saída ainda não tiver sido resgatada).
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/funding-full-bob-redeem.pdf}
+		\includegraphics[width=1\linewidth]{funding-full-bob-redeem.pdf}
 	}
 	\caption{Alice concorda que Bob transmitiu a Transação de Compromisso
 		correta e 1000 confirmações se passaram. Bob então pode
@@ -835,7 +836,7 @@ concordam em fazê-lo, geram um novo par de Transações de Compromisso.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/newcommit-simple.pdf}
+		\includegraphics[width=1\linewidth]{newcommit-simple.pdf}
 	}
 	\caption{Quatro transações possíveis podem existir, um par com os
 		compromissos antigos e outro par com os novos compromissos.
@@ -870,7 +871,7 @@ quando esse acordo for violado.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1.3\linewidth]{figures/newcommit-br.pdf}
+		\includegraphics[width=1.3\linewidth]{newcommit-br.pdf}
 	}
 	\caption{
 		Quando C2a e C2b existem, ambas as partes trocam Transações
@@ -899,7 +900,7 @@ termos do canal, e isso é programaticamente julgado pela blockchain.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1.3\linewidth]{figures/newcommit-penalty.pdf}
+		\includegraphics[width=1.3\linewidth]{newcommit-penalty.pdf}
 	}
 	\caption{
 		Transações em verde estão comprometidas na blockchain. Bob
@@ -1034,7 +1035,7 @@ adicional pode ocorrer no canal.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/cooperative-close.pdf}
+		\includegraphics[width=1\linewidth]{cooperative-close.pdf}
 	}
 	\caption{Se ambas as contrapartes são cooperativas, elas tomam os
 		saldos da Transação de Compromisso atual e gastam a partir da
@@ -1162,7 +1163,7 @@ usando nLockTime na transação que gasta.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/htlc-concept.pdf}
+		\includegraphics[width=1\linewidth]{htlc-concept.pdf}
 	}
 	\caption{Esta é uma implementação ingênua e não funcional de um HTLC.
 		Apenas o caminho do HTLC a partir da Transação de Compromisso
@@ -1214,7 +1215,7 @@ construção similar à do canal bidirecional.
 \begin{figure}[H]
 	\vspace*{-2cm}
 	\makebox[\linewidth]{
-		\includegraphics[width=1.3\linewidth]{figures/htlc-functional.pdf}
+		\includegraphics[width=1.3\linewidth]{htlc-functional.pdf}
 	}
 	\caption{Se Alice transmitir C2a, então a metade esquerda será
 		executada. Se Bob transmitir C2b, então a metade direita
@@ -1346,7 +1347,7 @@ Compromisso refletindo o novo saldo.
 \begin{figure}[H]
 	%\vspace*{-2cm}
 	\makebox[\linewidth]{
-		\includegraphics[width=1.2\linewidth]{figures/htlc-newcommit.pdf}
+		\includegraphics[width=1.2\linewidth]{htlc-newcommit.pdf}
 	}
 	\caption{Como Bob provou a Alice que conhece $R$ ao dizer-lhe $R$,
 		Alice está disposta a atualizar o saldo com uma nova
@@ -1383,7 +1384,7 @@ revogada.
 \begin{figure}[H]
 	\vspace*{-3cm}
 	\makebox[\linewidth]{
-		\includegraphics[width=1.3\linewidth]{figures/Diagram2.pdf}
+		\includegraphics[width=1.3\linewidth]{Diagram2.pdf}
 	}
 	\caption{Uma Transação de Compromisso totalmente revogada e um HTLC
 		encerrado. Se qualquer parte transmitir o Compromisso 2,
@@ -1583,7 +1584,7 @@ para Dave.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/network-fig0.pdf}
+		\includegraphics[width=1\linewidth]{network-fig0.pdf}
 	}
 	\caption{Pagamento pela Lightning Network usando HTLCs.
 	}
@@ -1602,7 +1603,7 @@ blockchain quando todas as partes são cooperativas.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/network-fig1.pdf}
+		\includegraphics[width=1\linewidth]{network-fig1.pdf}
 	}
 	\caption{Liquidação do HTLC, os fundos de Alice são enviados a Dave.
 	}
@@ -1640,7 +1641,7 @@ liquidação antecipada antes do fechamento do HTLC.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/network-fig2.pdf}
+		\includegraphics[width=1\linewidth]{network-fig2.pdf}
 	}
 	\caption{Apenas os canais não responsivos são transmitidos na
 		blockchain; todos os outros são liquidados off-chain via
@@ -1679,7 +1680,7 @@ de Compromisso.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/network-fig3.pdf}
+		\includegraphics[width=1\linewidth]{network-fig3.pdf}
 	}
 	\caption{Dave cria um caminho de volta a Alice depois que Alice falha
 		em enviar fundos a Dave, porque Carol não é cooperativa. A
@@ -1720,7 +1721,7 @@ novo participante substitua múltiplos saltos.
 
 \begin{figure}[H]
 	\makebox[\linewidth]{
-		\includegraphics[width=1\linewidth]{figures/network-fig4.pdf}
+		\includegraphics[width=1\linewidth]{network-fig4.pdf}
 	}
 	\caption{Erin está conectada tanto a Bob quanto a Dave. Se Bob deseja
 		liberar seu canal com Carol, já que esse canal está ativo e
