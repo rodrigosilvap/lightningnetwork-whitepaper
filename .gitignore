@@ -6,3 +6,5 @@
 *.pdf
 *.blg
 **/*.dia~
+figures/.built
+figures-pt-BR/
