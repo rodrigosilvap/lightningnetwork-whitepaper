@@ -8,8 +8,8 @@ Paper PDF: [http://lightning.network/lightning-network-paper.pdf](http://lightni
 
 | Language | Source | Status |
 | --- | --- | --- |
-| English (original) | [paper.tex](paper.tex) | Canonical |
-| Português (Brasil) | [paper.pt-BR.tex](paper.pt-BR.tex) | Draft v0.5.9.2 |
+| English (original) | [paper.tex](paper.tex) | Draft v0.5.9.2 |
+| Portuguese (Brazil) | [paper.pt-BR.tex](paper.pt-BR.tex) | Draft v0.5.9.2 |
 
 To compile a translation, run the same recipe as the English version against
 the translated file (e.g. `pdflatex paper.pt-BR.tex` etc.). Figures in
